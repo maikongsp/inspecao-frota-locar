@@ -1,0 +1,22 @@
+{
+  "name": "Locar - Inspeção de Frota e Qualidade",
+  "short_name": "Locar Inspeção",
+  "description": "Sistema Oficial de Inspeção de Frota e Controle de Qualidade - Locar Guindastes e Transportes Intermodais",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#101318",
+  "theme_color": "#474444",
+  "icons": [
+    {
+      "src": "./assets/locar_logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./assets/locar_logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

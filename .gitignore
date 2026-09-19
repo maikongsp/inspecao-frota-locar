@@ -1,0 +1,25 @@
+# Arquivos de Sistema e SO
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Variáveis de Ambiente e Credenciais Sensíveis
+.env
+.env.local
+.env.production
+
+# Logs e Arquivos Temporários
+*.log
+*.tmp
+.tempmediaStorage/
+scratch/
+
+# Gerenciadores de Pacote
+node_modules/
+package-lock.json
+
+# Builds e Caches
+.vercel/
+.cache/
+dist/
+build/

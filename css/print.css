@@ -1,0 +1,466 @@
+/* ==========================================================================
+   ESTILOS DO LAUDO TÉCNICO OFICIAL E IMPRESSÃO (A4 / PDF)
+   Locar Guindastes e Transportes Intermodais
+   ========================================================================== */
+
+/* Layout na tela (Modal / Viewer de Laudo) */
+.locar-report-document {
+  background-color: #FFFFFF;
+  color: #1E293B;
+  padding: 2.5rem;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+  font-size: 11px;
+  line-height: 1.45;
+  border-radius: 4px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* Cabeçalho do Laudo */
+.report-header {
+  border-bottom: 2px solid #0F172A;
+  padding-bottom: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.report-brand {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.brand-logo-container svg {
+  max-height: 58px;
+}
+
+.report-meta-box {
+  display: flex;
+  flex-direction: column;
+  text-align: right;
+}
+
+.report-doc-title {
+  font-family: 'Montserrat', Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  color: #0F172A;
+  letter-spacing: 0.5px;
+}
+
+.report-doc-id {
+  font-family: 'Consolas', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: #B45309;
+}
+
+.report-doc-date {
+  font-size: 9.5px;
+  color: #64748B;
+}
+
+/* Banner de Status de Liberação */
+.report-status-banner {
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.report-status-banner.status-approved {
+  background-color: #ECFDF5;
+  border: 2px solid #10B981;
+  color: #065F46;
+}
+
+.report-status-banner.status-rejected {
+  background-color: #FEF2F2;
+  border: 2px solid #EF4444;
+  color: #991B1B;
+}
+
+.report-status-banner .banner-icon {
+  font-size: 28px;
+  font-weight: 900;
+}
+
+.report-status-banner .banner-content {
+  flex: 1;
+}
+
+.report-status-banner .banner-content h2 {
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+
+.report-status-banner .banner-content p {
+  font-size: 10px;
+}
+
+.banner-qr canvas {
+  display: block;
+  border-radius: 4px;
+  border: 1px solid #CBD5E1;
+}
+
+/* Grid de Informações Técnicas */
+.report-grid-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.report-card {
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  padding: 0.85rem;
+  background-color: #F8FAFC;
+}
+
+.card-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: #0F172A;
+  border-bottom: 1px solid #E2E8F0;
+  padding-bottom: 0.35rem;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+}
+
+.report-table-info {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.report-table-info td {
+  padding: 3px 4px;
+  font-size: 10px;
+}
+
+.tag-highlight {
+  font-family: 'Montserrat', Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  color: #0F172A;
+  background: #FEF3C7;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+/* Alerta de Não Conformidades */
+.report-alert-nc {
+  background-color: #FEF2F2;
+  border: 1px solid #F87171;
+  border-radius: 6px;
+  padding: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+
+.report-alert-nc h3 {
+  font-size: 11px;
+  color: #991B1B;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.report-alert-nc p {
+  font-size: 9.5px;
+  color: #7F1D1D;
+  margin-bottom: 0.5rem;
+}
+
+.report-table-nc {
+  width: 100%;
+  border-collapse: collapse;
+  background: #FFFFFF;
+}
+
+.report-table-nc th, .report-table-nc td {
+  border: 1px solid #FECACA;
+  padding: 5px 6px;
+  font-size: 9.5px;
+  text-align: left;
+}
+
+.report-table-nc th {
+  background-color: #FEE2E2;
+  color: #991B1B;
+  font-weight: 700;
+}
+
+.norm-badge {
+  background: #F1F5F9;
+  border: 1px solid #CBD5E1;
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: 8.5px;
+  font-weight: 600;
+}
+
+.severity-tag {
+  font-size: 8.5px;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 2px;
+  text-transform: uppercase;
+}
+
+.sev-visual { background: #FEF3C7; color: #92400E; }
+.sev-func { background: #FEE2E2; color: #991B1B; }
+
+/* Tabela de Itens Normativos */
+.report-section {
+  margin-bottom: 1.25rem;
+}
+
+.section-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: #0F172A;
+  border-bottom: 1px solid #E2E8F0;
+  padding-bottom: 0.35rem;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+}
+
+.report-table-items {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.report-table-items th, .report-table-items td {
+  border: 1px solid #E2E8F0;
+  padding: 4px 6px;
+  font-size: 9px;
+  text-align: left;
+}
+
+.report-table-items th {
+  background-color: #F1F5F9;
+  font-weight: 700;
+  color: #334155;
+}
+
+.row-nc {
+  background-color: #FFF1F2;
+}
+
+.res-badge {
+  font-size: 8.5px;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.badge-ok { color: #059669; }
+.badge-nc { color: #DC2626; }
+
+.evid-badge {
+  font-size: 8px;
+  color: #2563EB;
+  margin-left: 4px;
+  font-weight: 600;
+}
+
+.norm-tag {
+  color: #64748B;
+}
+
+/* Galeria de Fotos de Evidência */
+.photos-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.photo-card {
+  border: 1px solid #E2E8F0;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #F8FAFC;
+}
+
+.photo-img-wrapper {
+  position: relative;
+  height: 120px;
+  background: #000;
+}
+
+.photo-img-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-stamp {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 8px;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.stamp-ok { background: #10B981; color: #FFFFFF; }
+.stamp-nc { background: #EF4444; color: #FFFFFF; }
+
+.photo-caption {
+  padding: 4px 6px;
+  font-size: 8.5px;
+  color: #334155;
+}
+
+.photo-obs {
+  color: #DC2626;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* Parecer e Assinaturas */
+.technical-opinion-box {
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 4px;
+  padding: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.technical-opinion-box h4 {
+  font-size: 10px;
+  font-weight: 800;
+  color: #0F172A;
+  margin-bottom: 3px;
+}
+
+.technical-opinion-box p {
+  font-size: 9.5px;
+  color: #475569;
+  line-height: 1.4;
+}
+
+.signatures-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-top: 1.5rem;
+  padding: 0 1rem;
+}
+
+.signature-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.signature-line {
+  border-bottom: 1px solid #0F172A;
+  width: 100%;
+  height: 50px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+
+.sig-placeholder {
+  font-size: 9px;
+  color: #94A3B8;
+  font-style: italic;
+  padding-bottom: 2px;
+}
+
+.sig-img {
+  max-height: 45px;
+}
+
+.sig-name {
+  font-size: 10px;
+  font-weight: 800;
+  color: #0F172A;
+}
+
+.sig-reg {
+  font-size: 9px;
+  color: #64748B;
+}
+
+.sig-role {
+  font-size: 8.5px;
+  color: #94A3B8;
+  text-transform: uppercase;
+}
+
+.report-footer {
+  border-top: 1px solid #E2E8F0;
+  padding-top: 0.75rem;
+  margin-top: 1.5rem;
+  text-align: center;
+  font-size: 8px;
+  color: #94A3B8;
+}
+
+/* ==========================================================================
+   REGRAS PARA IMPRESSÃO DIRETA / SALVAR COMO PDF
+   ========================================================================== */
+@media print {
+  /* Oculta tudo que não for o documento de laudo */
+  body {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .safety-top-stripe,
+  .app-header,
+  .main-nav,
+  .app-footer,
+  .modal-header,
+  .modal-footer,
+  .filters-toolbar,
+  .btn,
+  #app-toast {
+    display: none !important;
+  }
+
+  .modal-backdrop {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+
+  .modal-container {
+    max-width: 100% !important;
+    max-height: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+
+  .locar-report-document {
+    padding: 0 !important;
+    box-shadow: none !important;
+    max-width: 100% !important;
+  }
+
+  .photos-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    page-break-inside: avoid;
+  }
+
+  .report-signatures {
+    page-break-inside: avoid;
+  }
+}

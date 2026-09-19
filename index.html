@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sistema de Inspeção de Frota | Locar Guindastes e Transportes Intermodais</title>
+  
+  <!-- Fontes Google Modernas de Alta Legibilidade -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet" />
+
+  <meta name="theme-color" content="#474444" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" href="assets/locar_logo.png" />
+
+  <!-- Folhas de Estilo -->
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/print.css" />
+</head>
+<body>
+
+  <!-- FAIXA DE SEGURANÇA OPERACIONAL INDUSTRIAL -->
+  <div class="safety-top-stripe"></div>
+
+  <!-- CABEÇALHO INSTITUCIONAL OFICIAL LOCAR -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand-section">
+        <!-- LOGOMARCA OFICIAL DA LOCAR GUINDASTES -->
+        <img src="assets/locar_logo_transparent.png" alt="Locar Guindastes e Transportes Intermodais" class="locar-logo-img" />
+
+        <div class="system-title-badge">
+          <span class="system-name">SIG-INSPEÇÃO & QUALIDADE DE FROTA</span>
+          <span class="system-tagline">NR-11 • NR-12 • NR-18 (ANEXO IV) • NR-35 • NBR 16776</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button type="button" class="btn btn-sm btn-secondary" id="btn-open-pcm-settings" title="Configurar e-mail do PCM">
+          ⚙ Configurar PCM
+        </button>
+        <div class="system-clock" id="system-clock-display">--/--/---- --:--:--</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- NAVEGAÇÃO PRINCIPAL POR ABAS -->
+  <nav class="main-nav">
+    <div class="nav-container">
+      <button class="nav-tab active" data-tab="dashboard">
+        <span>🚜 Frota & Dashboard</span>
+        <span class="nav-badge-count" id="nav-count-fleet">0</span>
+      </button>
+      <button class="nav-tab" data-tab="inspecao">
+        <span>📋 Nova Inspeção Técnica</span>
+      </button>
+      <button class="nav-tab" data-tab="manutencao">
+        <span>📨 Solicitações de Serviço (PCM)</span>
+        <span class="nav-badge-count" id="nav-count-ss" style="background:var(--status-bloqueado); color:#FFF;">0</span>
+      </button>
+      <button class="nav-tab" data-tab="laudos">
+        <span>📜 Laudos & Histórico</span>
+        <span class="nav-badge-count" id="nav-count-laudos">0</span>
+      </button>
+      <button class="nav-tab" data-tab="novo-equipamento">
+        <span>➕ Cadastrar Equipamento</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ÁREA DE CONTEÚDO PRINCIPAL -->
+  <main class="app-main">
+
+    <!-- ====================================================================
+         ABA 1: DASHBOARD & FROTA DE EQUIPAMENTOS
+         ==================================================================== -->
+    <section class="tab-content active" id="tab-dashboard">
+      <!-- PAINEL DE KPIs OPERACIONAIS -->
+      <div class="kpis-grid" id="kpi-metrics-container">
+        <!-- Renderizado dinamicamente pelo FleetManager -->
+      </div>
+
+      <!-- BARRA DE FILTROS E BUSCA -->
+      <div class="filters-toolbar">
+        <div class="filters-group">
+          <span style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Categoria:</span>
+          <button class="filter-btn filter-type-btn active" data-type="todos">Todos</button>
+          <button class="filter-btn filter-type-btn" data-type="pta">🏗️ PTA (Plataformas)</button>
+          <button class="filter-btn filter-type-btn" data-type="guindaste">🏗️ Guindastes</button>
+          <button class="filter-btn filter-type-btn" data-type="empilhadeira">🚜 Empilhadeiras</button>
+        </div>
+
+        <div class="filters-group">
+          <span style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Status da Frota:</span>
+          <button class="filter-btn filter-status-btn active" data-status="todos">Todos</button>
+          <button class="filter-btn filter-status-btn" data-status="disponivel">Disponíveis no Pátio</button>
+          <button class="filter-btn filter-status-btn" data-status="locada">Locadas em Obra</button>
+          <button class="filter-btn filter-status-btn" data-status="manutencao">Em Manutenção (PCM)</button>
+        </div>
+
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="search-input" id="fleet-search-input" placeholder="Buscar por TAG, modelo ou chassi..." />
+        </div>
+      </div>
+
+      <!-- GRID DE CARDS DOS EQUIPAMENTOS -->
+      <div class="fleet-grid" id="fleet-grid-container">
+        <!-- Renderizado dinamicamente pelo FleetManager -->
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         ABA 2: SISTEMA DE INSPEÇÃO (WIZARD GUIADO)
+         ==================================================================== -->
+    <section class="tab-content" id="tab-inspecao">
+      <!-- PROMPT QUANDO NÃO HÁ INSPEÇÃO ATIVA -->
+      <div id="inspection-empty-prompt" class="empty-state-card" style="display:none;">
+        <div class="empty-icon">📋</div>
+        <h3>Nenhuma Inspeção em Andamento</h3>
+        <p>Selecione um equipamento da frota abaixo ou através do Painel de Frota para iniciar a vistoria técnica normativa.</p>
+        <div style="max-width: 450px; margin: 1.5rem auto 0 auto; display: flex; gap: 0.5rem; flex-direction: column;">
+          <select id="select-equipment-prompt" class="search-input" style="border-radius: var(--radius-md); padding: 0.75rem;">
+            <!-- Preenchido dinamicamente -->
+          </select>
+          <button type="button" class="btn btn-primary" id="btn-start-from-prompt" style="padding: 0.85rem;">
+            Iniciar Inspeção com Tolerância Zero ➔
+          </button>
+        </div>
+      </div>
+
+      <!-- ASSISTENTE DE INSPEÇÃO PASSO A PASSO -->
+      <div class="inspection-wizard" id="inspection-wizard-container">
+        <!-- ALERTA REGULAMENTAR DE TOLERÂNCIA ZERO -->
+        <div class="zero-tolerance-banner">
+          <span class="zt-icon">⚠</span>
+          <div class="zt-content">
+            <h4>DIRETRIZ DE TOLERÂNCIA ZERO (BLOQUEIO AUTOMÁTICO & ENVIO AO PCM)</h4>
+            <p>É estritamente proibida a liberação de máquinas com avarias visuais (amassados, pintura) ou adesivos fora do padrão Locar. Em caso de <strong>qualquer</strong> Não Conformidade, o equipamento será imediatamente retido e uma <strong>Solicitação de Serviço com e-mail formal será enviada ao PCM</strong>.</p>
+          </div>
+        </div>
+
+        <!-- BARRA DO EQUIPAMENTO EM VISTORIA -->
+        <div class="inspection-eq-bar">
+          <div class="eq-bar-left">
+            <span class="eq-bar-tag" id="insp-display-tag">---</span>
+            <div class="eq-bar-details">
+              <strong id="insp-display-name">---</strong> | Horímetro: <span id="insp-display-hourmeter">--</span>
+            </div>
+          </div>
+          <div class="eq-bar-norm">
+            Normas: <strong id="insp-display-norm">NR-11 / NR-12 / NR-18</strong>
+          </div>
+        </div>
+
+        <!-- STEPPER DE ETAPAS -->
+        <div class="inspection-stepper-header">
+          <div class="stepper-nav" id="inspection-stepper-nav">
+            <!-- Renderizado dinamicamente -->
+          </div>
+        </div>
+
+        <!-- CORPO DA ETAPA ATUAL -->
+        <div class="inspection-body">
+          <div class="section-intro">
+            <h3 id="wizard-section-title">Carregando etapa...</h3>
+            <p id="wizard-section-desc">Aguarde...</p>
+          </div>
+
+          <!-- CONTAINER DOS ITENS DE CHECKLIST -->
+          <div id="wizard-section-content">
+            <!-- Renderizado dinamicamente com botões Conforme / Não Conforme e fotos -->
+          </div>
+
+          <!-- BOTÃO FINAL DE SUBMISSÃO (Visível apenas na última etapa) -->
+          <div id="wizard-finish-box" style="display:none; margin-top: 1.5rem;">
+            <form id="form-finish-inspection">
+              <button type="submit" class="btn btn-primary btn-lg" style="width:100%;">
+                🔒 Finalizar Inspeção e Emitir Laudo Técnico com QR Code ➔
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- RODAPÉ DE NAVEGAÇÃO DO ASSISTENTE -->
+        <div class="inspection-footer-bar">
+          <div class="inspection-live-summary">
+            <span class="nc-count-pill nc-count-zero" id="live-nc-pill">✓ 0 Não Conformidades</span>
+          </div>
+          <div style="display:flex; gap:0.75rem;">
+            <button type="button" class="btn btn-secondary" id="btn-wizard-prev" style="display:none;">
+              ⬅ Etapa Anterior
+            </button>
+            <button type="button" class="btn btn-primary" id="btn-wizard-next">
+              Avançar Etapa ➔
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         ABA 3: SOLICITAÇÕES DE SERVIÇO (PCM)
+         ==================================================================== -->
+    <section class="tab-content" id="tab-manutencao">
+      <div class="filters-toolbar">
+        <div class="filters-group">
+          <span style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Status da S.S. (PCM):</span>
+          <button class="filter-btn filter-ss-btn active" data-status="todos">Todas as Solicitações</button>
+          <button class="filter-btn filter-ss-btn" data-status="aberta">Abertas / Aguardando PCM</button>
+          <button class="filter-btn filter-ss-btn" data-status="em_planejamento">Em Planejamento no PCM</button>
+          <button class="filter-btn filter-ss-btn" data-status="em_execucao">Em Execução na Oficina</button>
+          <button class="filter-btn filter-ss-btn" data-status="concluida">Concluídas (Prontas p/ Reinspeção)</button>
+        </div>
+      </div>
+
+      <div class="os-list-container" id="ss-list-container">
+        <!-- Renderizado dinamicamente pelo PCMServiceRequests -->
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         ABA 4: LAUDOS TÉCNICOS & HISTÓRICO
+         ==================================================================== -->
+    <section class="tab-content" id="tab-laudos">
+      <div class="os-card" style="border-left:none;">
+        <div class="os-card-header">
+          <h3 class="modal-title" style="font-size:1rem;">Histórico de Laudos Técnicos Periciais Emitidos</h3>
+        </div>
+        <div class="os-card-body" style="padding:0; overflow-x:auto;">
+          <table class="report-table-items" style="margin:0; width:100%;">
+            <thead>
+              <tr>
+                <th>Nº do Laudo</th>
+                <th>Prefixo / TAG</th>
+                <th>Equipamento</th>
+                <th>Data / Hora</th>
+                <th>Inspetor Responsável</th>
+                <th>Veredito</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="history-table-body">
+              <!-- Renderizado dinamicamente -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         ABA 5: CADASTRO DE NOVO EQUIPAMENTO NA FROTA
+         ==================================================================== -->
+    <section class="tab-content" id="tab-novo-equipamento">
+      <div class="os-card" style="border-left: 4px solid var(--locar-yellow); max-width: 800px; margin: 0 auto;">
+        <div class="os-card-header">
+          <h3 class="modal-title" style="font-size:1.1rem; color:var(--locar-yellow);">Cadastrar Novo Equipamento na Frota Locar</h3>
+        </div>
+        <div class="os-card-body">
+          <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:1.5rem;">
+            Todo equipamento novo é cadastrado compulsoriamente com status <strong>BLOQUEADO</strong>. Sua disponibilização para locação ou operação ocorrerá exclusivamente após 100% de aprovação na inspeção técnica inicial.
+          </p>
+
+          <form id="form-add-equipment">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
+              <div>
+                <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">TAG / Prefixo Operacional Locar: *</label>
+                <input type="text" id="new-eq-tag" class="search-input" style="border-radius:var(--radius-md);" placeholder="Ex: PTA-105, GD-205, EMP-304" required />
+              </div>
+              <div>
+                <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">Tipo / Categoria: *</label>
+                <select id="new-eq-type" class="search-input" style="border-radius:var(--radius-md);" required>
+                  <option value="pta">PTA - Plataforma de Trabalho Aéreo</option>
+                  <option value="guindaste">Guindaste (Rodoviário / RT / Munck)</option>
+                  <option value="empilhadeira">Empilhadeira (Combustão / Elétrica)</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
+              <div>
+                <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">Fabricante / Marca: *</label>
+                <input type="text" id="new-eq-brand" class="search-input" style="border-radius:var(--radius-md);" placeholder="Ex: Genie, JLG, Liebherr, Hyster" required />
+              </div>
+              <div>
+                <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">Modelo: *</label>
+                <input type="text" id="new-eq-model" class="search-input" style="border-radius:var(--radius-md);" placeholder="Ex: Z-45/25J, LTM 1100, 8FGU25" required />
+              </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem; margin-bottom:1rem;">
+              <div>
+                <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">Ano Fabricação: *</label>
+                <input type="number" id="new-eq-year" class="search-input" style="border-radius:var(--radius-md);" value="2024" min="1990" max="2027" required />
+              </div>
+              <div>
+                <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">Nº de Série / Chassi: *</label>
+                <input type="text" id="new-eq-serial" class="search-input" style="border-radius:var(--radius-md);" placeholder="Chassi do fabricante" required />
+              </div>
+              <div>
+                <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">Capacidade Nominal: *</label>
+                <input type="text" id="new-eq-capacity" class="search-input" style="border-radius:var(--radius-md);" placeholder="Ex: 230 kg, 75 Toneladas, 2.5 Ton" required />
+              </div>
+            </div>
+
+            <div style="margin-bottom:1.5rem;">
+              <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">Filial / Base Operacional Locar: *</label>
+              <input type="text" id="new-eq-branch" class="search-input" style="border-radius:var(--radius-md);" placeholder="Ex: Matriz São Paulo, Filial Rio, Filial Macaé" value="Filial São Paulo (Matriz)" required />
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg" style="width:100%;">
+              💾 Salvar Equipamento na Frota (Inicia Bloqueado) ➔
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ====================================================================
+       MODAIS DO SISTEMA
+       ==================================================================== -->
+
+  <!-- MODAL 1: INICIAR INSPEÇÃO (DADOS DO INSPETOR E HORÍMETRO) -->
+  <div class="modal-backdrop" id="modal-start-inspection">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title">Iniciar Inspeção Técnica Regulamentar</h3>
+        <button type="button" class="btn-close-modal">✕</button>
+      </div>
+      <form id="form-confirm-start-inspection">
+        <input type="hidden" id="modal-start-eq-id" />
+        <div class="modal-body">
+          <div style="background:var(--locar-chumbo-card); padding:1rem; border-radius:var(--radius-md); border:1px solid var(--locar-chumbo-border); margin-bottom:1.25rem;">
+            <div style="font-size:0.75rem; color:var(--text-muted);">EQUIPAMENTO SELECIONADO:</div>
+            <div style="font-family:var(--font-heading); font-size:1.2rem; font-weight:800; color:var(--locar-yellow);" id="modal-start-tag">---</div>
+            <div style="font-size:0.85rem; color:var(--text-secondary);" id="modal-start-name">---</div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
+            <div>
+              <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">Nome do Inspetor: *</label>
+              <input type="text" id="input-insp-first-name" class="search-input" style="border-radius:var(--radius-md);" placeholder="Ex: Carlos Eduardo" value="Carlos Eduardo" required />
+            </div>
+            <div>
+              <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">Sobrenome do Inspetor: *</label>
+              <input type="text" id="input-insp-last-name" class="search-input" style="border-radius:var(--radius-md);" placeholder="Ex: Mendes Silva" value="Mendes Silva" required />
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
+            <div>
+              <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">Telefone de Contato (Celular/WhatsApp): *</label>
+              <input type="tel" id="input-insp-phone" class="search-input" style="border-radius:var(--radius-md);" placeholder="(31) 99876-5432" value="(31) 99876-5432" required />
+              <small style="font-size:0.68rem; color:var(--text-muted);">Obrigatório para contato direto do PCM e clientes.</small>
+            </div>
+            <div>
+              <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">Registro Profissional (CREA/CFT): *</label>
+              <input type="text" id="input-insp-reg" class="search-input" style="border-radius:var(--radius-md);" value="CFT 88412-MG" required />
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
+            <div>
+              <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">Turno da Vistoria: *</label>
+              <select id="select-insp-shift" class="search-input" style="border-radius:var(--radius-md);">
+                <option value="Turno Diurno">Turno Diurno (1º Turno)</option>
+                <option value="Turno Vespertino">Turno Vespertino (2º Turno)</option>
+                <option value="Turno Noturno">Turno Noturno (Plantão)</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">Horímetro Atual (Horas): *</label>
+              <input type="number" id="input-insp-hourmeter" class="search-input" style="border-radius:var(--radius-md);" required />
+            </div>
+          </div>
+
+          <div style="background:rgba(239, 68, 68, 0.1); border:1px solid var(--status-bloqueado-border); border-radius:var(--radius-md); padding:0.75rem; font-size:0.78rem; color:#FCA5A5;">
+            ⚠ <strong>Aviso Mandatório:</strong> Qualquer não conformidade visual ou falha funcional causará retenção imediata em manutenção e envio automático de Solicitação de Serviço ao PCM.
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-close-modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Iniciar Checklist Normativo ➔</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 2: CÂMERA AO VIVO PARA EVIDÊNCIA -->
+  <div class="modal-backdrop" id="modal-camera-capture">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title">Registro Fotográfico Pericial de Evidência</h3>
+        <button type="button" class="btn-close-modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.8rem; color:var(--locar-yellow); margin-bottom:0.75rem; font-weight:700;" id="camera-modal-item-title">
+          Item Sendo Fotografado
+        </p>
+        <div class="camera-video-wrapper">
+          <video id="camera-video-stream" autoplay playsinline muted></video>
+          <div class="camera-crosshair"></div>
+        </div>
+        <p style="font-size:0.72rem; color:var(--text-muted); margin-top:0.5rem; text-align:center;">
+          Posicione a câmera sobre a peça/adesivo/painel e enquadre no centro. A foto conterá carimbo forense com TAG, data e hora.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-close-modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-capture-live-frame">📸 Capturar e Anexar Evidência</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: VISUALIZAÇÃO E IMPRESSÃO DO LAUDO TÉCNICO OFICIAL -->
+  <div class="modal-backdrop" id="modal-view-report">
+    <div class="modal-container modal-container-lg">
+      <div class="modal-header">
+        <h3 class="modal-title">Laudo Técnico Pericial de Inspeção - Locar Guindastes</h3>
+        <div style="display:flex; gap:0.5rem; align-items:center;">
+          <button type="button" class="btn btn-primary btn-sm" id="btn-print-report">🖨️ Imprimir / Salvar PDF</button>
+          <button type="button" class="btn-close-modal">✕</button>
+        </div>
+      </div>
+      <div class="modal-body" style="padding:1rem; background-color:#E2E8F0;">
+        <div id="report-modal-content">
+          <!-- Renderizado pelo ReportGenerator -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: NOTIFICAÇÃO E VISUALIZAÇÃO DO E-MAIL DO PCM -->
+  <div class="modal-backdrop" id="modal-pcm-email">
+    <div class="modal-container modal-container-lg">
+      <div class="modal-header" style="background:var(--locar-chumbo-surface); border-bottom:2px solid var(--locar-yellow);">
+        <div style="display:flex; align-items:center; gap:0.6rem;">
+          <span style="font-size:1.5rem;">📧</span>
+          <div>
+            <h3 class="modal-title" style="font-size:1.05rem;">E-mail Padrão Enviado ao PCM (Manutenção)</h3>
+            <span style="font-size:0.72rem; color:var(--locar-yellow);" id="pcm-modal-email-target">Destinatário: pcm@locar.com.br</span>
+          </div>
+        </div>
+        <button type="button" class="btn-close-modal">✕</button>
+      </div>
+      <div class="modal-body" style="padding:1.25rem; background:#0B0E14;">
+        <div style="display:flex; gap:0.5rem; margin-bottom:1rem; flex-wrap:wrap; justify-content:space-between; align-items:center;">
+          <div style="font-size:0.8rem; color:var(--text-secondary);">
+            Status: <span class="badge badge-success">✓ Disparo Automático Concluído</span>
+          </div>
+          <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+            <a href="#" target="_blank" class="btn btn-sm btn-primary" id="btn-open-mailto-client">
+              📬 Abrir no Outlook / Gmail
+            </a>
+            <a href="#" target="_blank" class="btn btn-sm btn-success" id="btn-open-whatsapp-pcm" style="background:#25D366; border-color:#25D366; color:#FFFFFF;">
+              💬 Despachar no WhatsApp do PCM
+            </a>
+            <button type="button" class="btn btn-sm btn-secondary" id="btn-copy-pcm-email-text">
+              📋 Copiar Texto do E-mail
+            </button>
+          </div>
+        </div>
+
+        <div id="pcm-email-preview-container" style="background:#FFF; border-radius:6px; overflow:hidden; max-height:550px; overflow-y:auto;">
+          <!-- Renderizado pelo PCMServiceRequests -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-close-modal">Fechar Notificação</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 5: CONFIGURAÇÕES DO PCM -->
+  <div class="modal-backdrop" id="modal-pcm-settings">
+    <div class="modal-container" style="max-width:520px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Configurações de Comunicação com o PCM</h3>
+        <button type="button" class="btn-close-modal">✕</button>
+      </div>
+      <form id="form-pcm-settings">
+        <div class="modal-body">
+          <div style="margin-bottom:1rem;">
+            <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">E-mail Oficial do PCM Locar: *</label>
+            <input type="email" id="input-pcm-email" class="search-input" style="border-radius:var(--radius-md);" required />
+            <small style="color:var(--text-muted); font-size:0.72rem;">Endereço para onde as Solicitações de Serviço e notificações de bloqueio são despachadas.</small>
+          </div>
+
+          <div style="margin-bottom:1rem;">
+            <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">Nome do Departamento / Gestor PCM:</label>
+            <input type="text" id="input-pcm-manager" class="search-input" style="border-radius:var(--radius-md);" />
+          </div>
+
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <input type="checkbox" id="check-auto-send-email" checked style="width:18px; height:18px; accent-color:var(--locar-yellow);" />
+            <label for="check-auto-send-email" style="font-size:0.8rem; color:var(--text-secondary); cursor:pointer;">
+              Disparar e-mail padrão automaticamente ao registrar reprovação na inspeção
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-close-modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar Configurações</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 6: PREVIEW DE FOTO EM ALTA RESOLUÇÃO -->
+  <div class="modal-backdrop" id="modal-preview-photo">
+    <div class="modal-container" style="max-width:600px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Evidência Fotográfica Ampliada</h3>
+        <button type="button" class="btn-close-modal">✕</button>
+      </div>
+      <div class="modal-body" style="text-align:center; padding:1rem;">
+        <img id="full-preview-image" src="" alt="Evidência" style="max-width:100%; border-radius:var(--radius-md); border:1px solid var(--locar-chumbo-border);" />
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 7: HISTÓRICO DE EQUIPAMENTO -->
+  <div class="modal-backdrop" id="modal-equipment-history">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title" id="eq-history-title">Histórico de Vistorias do Equipamento</h3>
+        <button type="button" class="btn-close-modal">✕</button>
+      </div>
+      <div class="modal-body" id="eq-history-modal-content">
+        <!-- Renderizado dinamicamente -->
+      </div>
+    </div>
+  </div>
+
+  <!-- RODAPÉ INSTITUCIONAL -->
+  <footer class="app-footer">
+    <div class="footer-container">
+      <div>
+        <strong>Locar Guindastes e Transportes Intermodais S/A</strong> &copy; 2026. Todos os direitos reservados.
+      </div>
+      <div class="footer-norms">
+        <span>NR-11</span>
+        <span>NR-12</span>
+        <span>NR-18</span>
+        <span>NR-35</span>
+        <span>NBR 16776</span>
+        <span>ASME B30.5</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- SCRIPT PRINCIPAL MODULAR (ES6) -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
