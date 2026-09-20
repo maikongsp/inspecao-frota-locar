@@ -202,6 +202,7 @@ export const FleetManager = {
           </div>
         </div>
       </div>
+    `;
   },
 
   renderFleetGrid(containerElement, filterType = 'todos', filterStatus = 'todos', searchTerm = '') {
