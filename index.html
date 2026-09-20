@@ -450,8 +450,11 @@
     <div class="modal-container modal-container-lg">
       <div class="modal-header">
         <h3 class="modal-title">Laudo Técnico Pericial de Inspeção - Locar Guindastes</h3>
-        <div style="display:flex; gap:0.5rem; align-items:center;">
-          <button type="button" class="btn btn-primary btn-sm" id="btn-print-report">🖨️ Imprimir / Salvar PDF</button>
+        <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+          <button type="button" class="btn btn-success btn-sm" id="btn-download-pdf-direct" style="background:#10B981; border-color:#10B981; color:#FFFFFF; font-weight:700;">
+            📥 Baixar PDF Direto
+          </button>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-print-report">🖨️ Imprimir</button>
           <button type="button" class="btn-close-modal">✕</button>
         </div>
       </div>
@@ -782,6 +785,8 @@
     </div>
   </footer>
 
+  <!-- BIBLIOTECA DE EXPORTAÇÃO DIRETA DE PDF OFFLINE -->
+  <script src="js/libs/html2pdf.bundle.min.js"></script>
   <!-- SCRIPT PRINCIPAL MODULAR (ES6) -->
   <script type="module" src="js/app.js"></script>
 </body>

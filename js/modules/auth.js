@@ -108,19 +108,47 @@ export class AuthManager {
     }
   }
 
-  login(identifier, pin) {
-    const users = this.getRegisteredUsers();
+  async login(identifier, pinOrPassword) {
     const cleanId = String(identifier).trim().toLowerCase();
-    const cleanPin = String(pin).trim();
+    const cleanSecret = String(pinOrPassword).trim();
 
+    // 1. Tenta autenticação corporativa online via Appwrite Cloud se for e-mail e senha de 8+ caracteres
+    if (typeof navigator !== 'undefined' && navigator.onLine && cleanId.includes('@') && cleanSecret.length >= 8) {
+      try {
+        const { appwriteClient } = await import('../appwriteClient.js');
+        const cloudRes = await appwriteClient.createSession(cleanId, cleanSecret);
+        if (cloudRes.success) {
+          const user = {
+            id: cloudRes.session.userId || `usr_${Date.now()}`,
+            email: cleanId,
+            registration: 'LOC-CLOUD',
+            name: cleanId.split('@')[0].replace('.', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            role: cleanId.includes('admin') ? 'admin' : (cleanId.includes('pcm') ? 'pcm' : (cleanId.includes('comercial') ? 'commercial' : 'inspector')),
+            roleName: 'Operador Autenticado (Appwrite Cloud)',
+            phone: '',
+            authSource: 'appwrite_cloud'
+          };
+          this.saveSession(user);
+          this.logAudit('LOGIN_APPWRITE', `Autenticação na nuvem Appwrite para ${cleanId}`);
+          return { success: true, user, authSource: 'appwrite_cloud' };
+        }
+      } catch (errCloud) {
+        console.warn('Tentativa Appwrite Cloud falhou, tentando base homologada local:', errCloud);
+      }
+    }
+
+    // 2. Base corporativa homologada para operação em campo (offline-first)
+    const users = this.getRegisteredUsers();
     const user = users.find(u => 
       (u.email.toLowerCase() === cleanId || u.registration.toLowerCase() === cleanId) &&
-      u.pin === cleanPin
+      u.pin === cleanSecret
     );
 
     if (user) {
-      this.saveSession(user);
-      return { success: true, user };
+      const sessionUser = { ...user, authSource: 'local_pin' };
+      this.saveSession(sessionUser);
+      this.logAudit('LOGIN_LOCAL', `Autenticação homologada para ${user.name}`);
+      return { success: true, user: sessionUser, authSource: 'local_pin' };
     }
 
     return { 

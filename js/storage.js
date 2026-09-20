@@ -4,6 +4,7 @@
  */
 
 import { INITIAL_FLEET } from './data/fleetData.js';
+import { idbStorage } from './modules/indexedDBStorage.js';
 
 const STORAGE_KEYS = {
   FLEET: 'locar_inspection_fleet_v2_betim',
@@ -192,7 +193,7 @@ export const Storage = {
     return eq;
   },
 
-  // --- HISTÓRICO DE INSPEÇÕES ---
+  // --- HISTÓRICO DE INSPEÇÕES (COM INDEXEDDB & LOCALSTORAGE DUAL LAYER) ---
   getInspections() {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.INSPECTIONS);
@@ -206,6 +207,16 @@ export const Storage = {
   },
 
   saveInspection(inspection) {
+    // 1. Grava no IndexedDB de alta capacidade (fotos e laudo completos)
+    try {
+      idbStorage.saveInspection(inspection).catch(e => {
+        console.warn('[Storage] Fallback IndexedDB:', e);
+      });
+    } catch (errIdb) {
+      console.warn('[Storage] IndexedDB não disponível:', errIdb);
+    }
+
+    // 2. Grava no LocalStorage para acesso síncrono ultra-rápido na UI
     const history = this.getInspections();
     history.unshift(inspection);
     try {
@@ -234,6 +245,17 @@ export const Storage = {
   getInspectionById(id) {
     const history = this.getInspections();
     return history.find(item => item.id === id);
+  },
+
+  async getInspectionWithFullEvidence(id) {
+    // Busca prioritariamente no IndexedDB com todas as evidências fotográficas em alta resolução
+    try {
+      const fromIdb = await idbStorage.getInspectionById(id);
+      if (fromIdb) return fromIdb;
+    } catch (e) {
+      console.warn('[Storage] Falha ao ler IndexedDB, lendo LocalStorage:', e);
+    }
+    return this.getInspectionById(id);
   },
 
   // --- SOLICITAÇÕES DE SERVIÇO (SS) PARA O PCM ---

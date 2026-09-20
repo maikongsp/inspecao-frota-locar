@@ -81,3 +81,31 @@ export async function generateAuditHash(payload) {
   }
 }
 
+/**
+ * Formata data no padrão YYYY-MM-DD preservando rigorosamente o fuso horário local
+ * Evita o clássico erro de salto de dia após as 21h causado por toISOString()
+ * @param {Date|string|number} [date=new Date()]
+ * @returns {string} YYYY-MM-DD
+ */
+export function formatLocalDate(date = new Date()) {
+  const d = date instanceof Date ? date : new Date(date);
+  if (isNaN(d.getTime())) return '';
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Adiciona dias a uma data mantendo integridade do calendário local
+ * @param {Date|string} date 
+ * @param {number} days 
+ * @returns {Date}
+ */
+export function addDays(date, days) {
+  const d = date instanceof Date ? new Date(date.getTime()) : new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+

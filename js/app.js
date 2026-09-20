@@ -13,7 +13,7 @@ import { CHECKLIST_NORMS } from './data/checklistNorms.js';
 import { aiVisionInspector } from './modules/aiVisionInspector.js';
 import { aiCopilot } from './modules/aiCopilot.js';
 import { appwriteClient } from './appwriteClient.js';
-import { escapeHTML } from './utils.js';
+import { escapeHTML, formatLocalDate, addDays } from './utils.js';
 import { authManager } from './modules/auth.js';
 
 // Estado global da interface
@@ -284,15 +284,14 @@ function openReserveModal(equipmentId) {
   document.getElementById('reserve-equipment-tag').textContent = `${eq.tag} - ${eq.brand} ${eq.model}`;
   document.getElementById('reserve-equipment-desc').textContent = `${eq.typeName} | Horímetro: ${eq.hourmeter || 0}h | Chassi: ${eq.chassi || 'N/D'}`;
 
-  // Preenche datas padrão (início hoje, término em 7 dias)
+  // Preenche datas padrão com garantia de integridade do fuso horário local
   const today = new Date();
-  const nextWeek = new Date();
-  nextWeek.setDate(today.getDate() + 7);
+  const nextWeek = addDays(today, 7);
 
   const startEl = document.getElementById('reserve-start-date');
   const endEl = document.getElementById('reserve-end-date');
-  if (startEl) startEl.value = today.toISOString().split('T')[0];
-  if (endEl) endEl.value = nextWeek.toISOString().split('T')[0];
+  if (startEl) startEl.value = formatLocalDate(today);
+  if (endEl) endEl.value = formatLocalDate(nextWeek);
 
   updateEstimatedDays();
 
@@ -1441,6 +1440,47 @@ function initModals() {
     });
   }
 
+  // Botão Download Direto de PDF Oficial (1-Clique Offline)
+  const btnDownloadPdf = document.getElementById('btn-download-pdf-direct');
+  if (btnDownloadPdf) {
+    btnDownloadPdf.addEventListener('click', async () => {
+      const reportElement = document.getElementById('locar-printable-report');
+      if (!reportElement) {
+        showToast('Nenhum laudo pericial disponível para exportação.', 'warning');
+        return;
+      }
+
+      if (typeof window.html2pdf === 'function') {
+        const docId = (reportElement.querySelector('.report-doc-id')?.textContent || 'Laudo-Locar')
+          .replace(/[^a-zA-Z0-9_-]/g, '_');
+        const opt = {
+          margin: [6, 6, 6, 6],
+          filename: `${docId}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        showToast('Gerando laudo pericial em PDF de alta resolução...', 'info');
+        btnDownloadPdf.disabled = true;
+        const originalText = btnDownloadPdf.innerHTML;
+        btnDownloadPdf.innerHTML = '⏳ Gerando PDF...';
+
+        try {
+          await window.html2pdf().set(opt).from(reportElement).save();
+          showToast('✓ Laudo técnico pericial em PDF baixado com sucesso!', 'success');
+        } catch (err) {
+          console.warn('Erro ao gerar PDF com html2pdf, abrindo impressão nativa:', err);
+          window.print();
+        } finally {
+          btnDownloadPdf.disabled = false;
+          btnDownloadPdf.innerHTML = originalText;
+        }
+      } else {
+        window.print();
+      }
+    });
+  }
+
   // Botão Copiar Texto do E-mail do PCM
   const btnCopyEmail = document.getElementById('btn-copy-pcm-email-text');
   if (btnCopyEmail) {
@@ -1691,18 +1731,21 @@ function initAuthSystem() {
     });
   });
 
-  // Formulário de Login Corporativo com Matrícula e PIN
+  // Formulário de Login Corporativo com Matrícula e PIN / Senha Appwrite
   const formLogin = document.getElementById('form-corporate-login');
   if (formLogin) {
-    formLogin.addEventListener('submit', (e) => {
+    formLogin.addEventListener('submit', async (e) => {
       e.preventDefault();
       const identifier = document.getElementById('auth-input-identifier')?.value;
       const pin = document.getElementById('auth-input-pin')?.value;
-      const res = authManager.login(identifier, pin);
+      
+      showToast('Autenticando credenciais corporativas...', 'info');
+      const res = await authManager.login(identifier, pin);
       if (res.success) {
         updateAuthUI();
         renderPermissionsBox();
-        showToast(`Autenticado com sucesso: ${res.user.name}`, 'success');
+        const sourceNotice = res.authSource === 'appwrite_cloud' ? 'via Nuvem Appwrite Cloud' : 'via Matrícula Homologada';
+        showToast(`✓ Operador autenticado com sucesso: ${res.user.name} (${sourceNotice})`, 'success');
         closeAllModals();
       } else {
         showToast(res.error, 'danger');

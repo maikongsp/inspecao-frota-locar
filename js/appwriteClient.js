@@ -277,6 +277,34 @@ export class AppwriteClient {
             return { success: false, status: 0, error: err };
         }
     }
+
+    /**
+     * Autentica usuário corporativo diretamente via API de Sessões do Appwrite Cloud
+     */
+    async createSession(email, password) {
+        if (!this.isCloudEnabled || !navigator.onLine) {
+            return { success: false, error: 'Dispositivo em modo offline' };
+        }
+        try {
+            const url = `${this.endpoint}/account/sessions/email`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Appwrite-Project': this.projectId
+                },
+                body: JSON.stringify({ email, password })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                return { success: true, session: data };
+            } else {
+                return { success: false, error: data.message || 'Falha na autenticação corporativa Appwrite' };
+            }
+        } catch (err) {
+            return { success: false, error: err.message };
+        }
+    }
 }
 
 export const appwriteClient = new AppwriteClient();

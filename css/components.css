@@ -429,6 +429,7 @@
 }
 
 .card-available::before { background-color: var(--status-liberado); }
+.card-reserved::before { background-color: #F59E0B; }
 .card-rented::before { background-color: #38BDF8; }
 .card-maintenance::before { background-color: var(--status-manutencao); }
 .card-blocked::before { background-color: var(--status-bloqueado); }
