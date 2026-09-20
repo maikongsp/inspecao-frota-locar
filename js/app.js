@@ -12,7 +12,7 @@ import { PCMServiceRequests } from './modules/pcmServiceRequests.js';
 import { CHECKLIST_NORMS } from './data/checklistNorms.js';
 import { aiVisionInspector } from './modules/aiVisionInspector.js';
 import { aiCopilot } from './modules/aiCopilot.js';
-import { supabaseClient } from './supabaseClient.js';
+import { appwriteClient } from './appwriteClient.js';
 
 // Estado global da interface
 const AppState = {
@@ -276,8 +276,8 @@ function initInspectionEvents() {
       const aiAppraisal = currentInsp?.aiExpertAppraisal || null;
       const completed = InspectionEngine.finishInspection(opinionText, signatureData, aiAppraisal);
       if (completed) {
-        // Sincronização em nuvem resiliente com Supabase (offline-first)
-        supabaseClient.syncInspection(completed);
+        // Sincronização em nuvem resiliente com Appwrite Cloud (offline-first)
+        appwriteClient.syncInspection(completed);
 
         refreshDashboard();
         refreshPCMView();
@@ -293,7 +293,7 @@ function initInspectionEvents() {
           const requests = Storage.getServiceRequests();
           const targetSS = requests.find(s => s.id === completed.associatedServiceRequest);
           if (targetSS) {
-            supabaseClient.syncPCMRequest(targetSS);
+            appwriteClient.syncPCMRequest(targetSS);
             openPCMEmailModal(targetSS);
           } else {
             openReportModal(completed);

@@ -63,16 +63,19 @@ Sistema industrial para inspeção técnica regulamentar, conformidade visual es
 
 ---
 
-## ☁️ Configuração do Supabase (Nuvem)
+## ☁️ Configuração do Appwrite Cloud (Nuvem)
 
-1. Crie um projeto no [Supabase](https://supabase.com/).
-2. No painel do Supabase, acesse o **SQL Editor** e execute o script contido em:
-   📁 [`supabase/schema.sql`](supabase/schema.sql)
-3. Copie o arquivo de exemplo de variáveis:
+1. Crie uma conta gratuita no [Appwrite Cloud](https://cloud.appwrite.io/).
+2. Crie um projeto chamado `Locar Inspeção Betim`.
+3. Siga o passo a passo ilustrado no arquivo:
+   📁 [`appwrite/setup_guide.md`](appwrite/setup_guide.md)
+4. Configure as variáveis no seu `.env` ou no painel da Vercel:
    ```bash
-   cp .env.example .env
+   APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
+   APPWRITE_PROJECT_ID=seu-project-id
+   APPWRITE_DATABASE_ID=locar_betim_db
    ```
-4. Configure as chaves `SUPABASE_URL` e `SUPABASE_ANON_KEY` no seu ambiente ou informe-as no arquivo de configuração do sistema. O sistema continuará operando 100% offline se as chaves não forem preenchidas.
+5. O sistema sincronizará todas as vistorias, fotos e S.S. em tempo real. Se o dispositivo estiver sem internet no pátio, o modo **Offline-First** grava localmente e sincroniza quando reconectar.
 
 ---
 
