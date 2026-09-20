@@ -256,8 +256,15 @@
          ==================================================================== -->
     <section class="tab-content" id="tab-laudos">
       <div class="os-card" style="border-left:none;">
-        <div class="os-card-header">
-          <h3 class="modal-title" style="font-size:1rem;">Histórico de Laudos Técnicos Periciais Emitidos</h3>
+        <div class="os-card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
+          <div>
+            <h3 class="modal-title" style="font-size:1rem;">Histórico de Laudos Técnicos Periciais Emitidos</h3>
+            <span style="font-size:0.72rem; color:var(--text-muted);" id="history-counter-label">Carregando laudos...</span>
+          </div>
+          <div class="search-box" style="max-width:320px;">
+            <span class="search-icon">🔍</span>
+            <input type="text" class="search-input" id="history-search-input" placeholder="Buscar por TAG, modelo, inspetor ou Nº..." />
+          </div>
         </div>
         <div class="os-card-body" style="padding:0; overflow-x:auto;">
           <table class="report-table-items" style="margin:0; width:100%;">

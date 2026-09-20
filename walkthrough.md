@@ -112,3 +112,28 @@ Toda tentativa de executar uma ação operacional sem estar autenticado intercep
 ### Validação:
 - Script [scratch/test_guest_mode.js](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/scratch/test_guest_mode.js): **19 passaram, 0 falharam**.
 
+---
+
+## ⚡ 4 Novas Melhorias e Refinamentos de Produção Implementados
+
+Com base na auditoria geral de todas as funções do sistema, identificamos e implementamos 4 refinamentos operacionais cruciais:
+
+1. **📅 Blindagem de Datas no Modal de Reserva Comercial**:
+   - Adicionada restrição `min` com a data atual no campo de início (`reserve-start-date`), impedindo agendamentos retroativos no passado.
+   - Vinculação dinâmica do `min` do campo de término (`reserve-end-date`) à data de início selecionada, com auto-ajuste e validação estrita no envio (`endDate >= startDate`).
+
+2. **📥 Exportação de Frota (CSV/Excel) Sensível aos Filtros Ativos**:
+   - O botão `Exportar Frota` agora detecta os filtros aplicados na tela (`Divisão PTA`, `Divisão Guindastes`, `Disponíveis`, `Manutenção` ou busca textual) e exporta a listagem correspondente.
+   - Gera nomes de arquivos contextuais (ex: `Relatorio_Frota_Divisao_PTA_..._(245_ativos).csv`) e alerta via toast com a quantidade exata exportada.
+
+3. **🔍 Campo de Busca Rápida na Aba "Laudos & Histórico"**:
+   - Inserido campo de busca no cabeçalho da tabela de laudos (`#history-search-input`) e contador dinâmico (`#history-counter-label`).
+   - Permite filtrar instantaneamente por TAG do equipamento, modelo, número do laudo (`INSP-LOC-...`) ou nome do inspetor.
+
+4. **⏱️ Alerta Visual de Manutenção Preventiva por Horímetro nos Cards**:
+   - Frotas que atingem intervalos periódicos de revisão (ciclos de 250h/500h) recebem a etiqueta visual `⏱️ Preventiva` ao lado do horímetro, facilitando a programação proativa do PCM de Betim antes de falhas operacionais.
+
+### Validação Consolidada:
+- Suíte geral [scratch/test_all_system_functions.js](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/scratch/test_all_system_functions.js): **114 passaram, 0 falharam**.
+
+

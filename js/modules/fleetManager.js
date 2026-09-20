@@ -315,7 +315,18 @@ export const FleetManager = {
               </div>
               <div class="spec-item">
                 <span class="spec-label">Horímetro:</span>
-                <span class="spec-val">${eq.hourmeter} h</span>
+                <span class="spec-val" style="display:flex; align-items:center; gap:0.35rem; flex-wrap:wrap;">
+                  ${eq.hourmeter} h
+                  ${(() => {
+                    const h = Number(eq.hourmeter) || 0;
+                    const rem = h % 250;
+                    return (h >= 200 && (rem >= 235 || rem <= 15)) ? `
+                      <span class="preventive-badge" style="font-size:0.62rem; color:#F59E0B; background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.35); padding:1px 4px; border-radius:3px; font-weight:700;" title="Horímetro próximo ao ciclo de manutenção preventiva (250h/500h)">
+                        ⏱️ Preventiva
+                      </span>
+                    ` : '';
+                  })()}
+                </span>
               </div>
               <div class="spec-item">
                 <span class="spec-label">Alcance / Elevação:</span>
@@ -407,10 +418,41 @@ export const FleetManager = {
   },
 
   /**
-   * Exporta a frota completa para arquivo Excel / CSV (com UTF-8 BOM)
+   * Exporta a frota (ou visão filtrada atual) para arquivo Excel / CSV (com UTF-8 BOM)
+   * @param {string} [filterType='todos']
+   * @param {string} [filterStatus='todos']
+   * @param {string} [searchTerm='']
    */
-  exportFleetToCSV() {
-    const fleet = Storage.getFleet();
+  exportFleetToCSV(filterType = 'todos', filterStatus = 'todos', searchTerm = '') {
+    let fleet = Storage.getFleet();
+
+    // Filtro por Divisão de Negócio / Categoria
+    if (filterType && filterType !== 'todos') {
+      if (filterType === 'pta') {
+        fleet = fleet.filter(e => e.type === 'pta');
+      } else if (filterType === 'guindastes_div' || filterType === 'guindaste') {
+        fleet = fleet.filter(e => e.type !== 'pta');
+      } else {
+        fleet = fleet.filter(e => e.type === filterType);
+      }
+    }
+
+    // Filtro por status
+    if (filterStatus && filterStatus !== 'todos') {
+      fleet = fleet.filter(e => e.status === filterStatus);
+    }
+
+    // Busca textual
+    if (searchTerm && searchTerm.trim() !== '') {
+      const term = searchTerm.toLowerCase().trim();
+      fleet = fleet.filter(e => 
+        e.tag.toLowerCase().includes(term) ||
+        e.model.toLowerCase().includes(term) ||
+        e.brand.toLowerCase().includes(term) ||
+        (e.serialNumber && e.serialNumber.toLowerCase().includes(term))
+      );
+    }
+
     const headers = [
       'TAG / Prefixo',
       'Divisão de Negócio',
@@ -448,14 +490,28 @@ export const FleetManager = {
       ...rows.map(r => r.map(field => `"${sanitizeCSV(field)}"`).join(';'))
     ].join('\r\n');
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Relatorio_Frota_Locar_Betim_${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    let filterLabel = 'Completa';
+    if (filterType === 'pta') filterLabel = 'Divisao_PTA';
+    else if (filterType === 'guindastes_div') filterLabel = 'Divisao_Guindastes';
+
+    if (filterStatus !== 'todos') {
+      filterLabel += `_${filterStatus.toUpperCase()}`;
+    }
+
+    const filename = `Relatorio_Frota_${filterLabel}_Locar_Betim_${new Date().toISOString().split('T')[0]}_(${fleet.length}_ativos).csv`;
+
+    if (typeof document !== 'undefined' && typeof Blob !== 'undefined' && typeof URL !== 'undefined') {
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    return { count: fleet.length, filename };
   }
 };

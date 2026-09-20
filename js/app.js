@@ -203,8 +203,12 @@ function initFleetView() {
   const btnExportCSV = document.getElementById('btn-export-fleet-csv');
   if (btnExportCSV) {
     btnExportCSV.addEventListener('click', () => {
-      FleetManager.exportFleetToCSV();
-      showToast('Relatório completo da frota de Betim exportado com sucesso!', 'success');
+      const res = FleetManager.exportFleetToCSV(
+        AppState.fleetFilterType,
+        AppState.fleetFilterStatus,
+        AppState.fleetSearchTerm
+      );
+      showToast(`Relatório exportado com sucesso: ${res.count} ativos (${res.filename})!`, 'success');
     });
   }
 
@@ -312,8 +316,14 @@ function initFleetView() {
         return;
       }
 
+      const todayStr = formatLocalDate();
+      if (startDate < todayStr) {
+        showToast('A data de início da reserva não pode ser anterior a hoje.', 'warning');
+        return;
+      }
+
       if (new Date(endDate) < new Date(startDate)) {
-        showToast('A data de término não pode ser anterior à data de início.', 'danger');
+        showToast('A data de término não pode ser anterior à data de início da operação.', 'danger');
         return;
       }
 
@@ -374,8 +384,25 @@ function openReserveModal(equipmentId) {
 
   const startEl = document.getElementById('reserve-start-date');
   const endEl = document.getElementById('reserve-end-date');
-  if (startEl) startEl.value = formatLocalDate(today);
-  if (endEl) endEl.value = formatLocalDate(nextWeek);
+  const todayStr = formatLocalDate(today);
+  if (startEl) {
+    startEl.value = todayStr;
+    startEl.min = todayStr;
+    startEl.onchange = () => {
+      if (endEl) {
+        endEl.min = startEl.value || todayStr;
+        if (endEl.value && endEl.value < startEl.value) {
+          endEl.value = startEl.value;
+        }
+      }
+      updateEstimatedDays();
+    };
+  }
+  if (endEl) {
+    endEl.value = formatLocalDate(nextWeek);
+    endEl.min = startEl?.value || todayStr;
+    endEl.onchange = updateEstimatedDays;
+  }
 
   updateEstimatedDays();
 
@@ -1394,18 +1421,46 @@ function initHistoryView() {
       }
     });
   }
+
+  const searchInput = document.getElementById('history-search-input');
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      refreshHistory();
+    });
+  }
 }
 
 function refreshHistory() {
   const tbody = document.getElementById('history-table-body');
   if (!tbody) return;
 
-  const inspections = Storage.getInspections();
+  const searchInput = document.getElementById('history-search-input');
+  const query = (searchInput ? searchInput.value : '').toLowerCase().trim();
+
+  let inspections = Storage.getInspections();
+  const totalOriginal = inspections.length;
+
+  if (query) {
+    inspections = inspections.filter(i => 
+      (i.id && i.id.toLowerCase().includes(query)) ||
+      (i.equipmentTag && i.equipmentTag.toLowerCase().includes(query)) ||
+      (i.equipmentName && i.equipmentName.toLowerCase().includes(query)) ||
+      (i.inspectorName && i.inspectorName.toLowerCase().includes(query))
+    );
+  }
+
+  const counterLabel = document.getElementById('history-counter-label');
+  if (counterLabel) {
+    counterLabel.textContent = query 
+      ? `Filtrando ${inspections.length} de ${totalOriginal} laudo(s)`
+      : `Total de ${totalOriginal} laudo(s) emitido(s)`;
+  }
+
   if (inspections.length === 0) {
     tbody.innerHTML = `
       <tr>
         <td colspan="7" style="text-align:center; padding:2rem; color:var(--text-muted);">
-          Nenhum laudo técnico pericial emitido até o momento.
+          ${query ? 'Nenhum laudo encontrado para os critérios de busca digitados.' : 'Nenhum laudo técnico pericial emitido até o momento.'}
         </td>
       </tr>
     `;
