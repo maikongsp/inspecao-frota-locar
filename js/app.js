@@ -13,6 +13,7 @@ import { CHECKLIST_NORMS } from './data/checklistNorms.js';
 import { aiVisionInspector } from './modules/aiVisionInspector.js';
 import { aiCopilot } from './modules/aiCopilot.js';
 import { appwriteClient } from './appwriteClient.js';
+import { escapeHTML } from './utils.js';
 
 // Estado global da interface
 const AppState = {
@@ -25,6 +26,7 @@ const AppState = {
   signatureCanvas: null,
   signatureCtx: null,
   isDrawingSignature: false,
+  hasSignatureStroke: false,
   lastGeneratedEmailText: ''
 };
 
@@ -216,6 +218,28 @@ function promptStartInspection(equipmentId) {
   document.getElementById('modal-start-eq-id').value = equipment.id;
   document.getElementById('input-insp-hourmeter').value = equipment.hourmeter || '';
 
+  // Verifica se há Solicitação de Serviço pendente no PCM para este equipamento
+  const activeSS = Storage.getServiceRequests().find(s => 
+    (s.equipmentId === equipment.id || s.equipmentTag === equipment.tag) && 
+    s.status !== 'concluida'
+  );
+  const ssNoticeEl = document.getElementById('modal-start-ss-notice');
+  if (ssNoticeEl) {
+    if (activeSS) {
+      ssNoticeEl.style.display = 'block';
+      ssNoticeEl.innerHTML = `
+        <div style="background:rgba(245, 158, 11, 0.15); border:1px solid var(--locar-yellow); border-radius:var(--radius-md); padding:0.75rem; margin-bottom:1rem; font-size:0.78rem; color:#FDE68A;">
+          <strong>⚠ ATENÇÃO: EQUIPAMENTO COM S.S. PENDENTE NO PCM:</strong><br/>
+          Existe a solicitação <strong>${escapeHTML(activeSS.id)}</strong> (${escapeHTML(activeSS.status.toUpperCase())}) em aberto para este equipamento.<br/>
+          <em>Esta nova inspeção servirá como vistoria técnica de comprovação de reparos para eventual liberação.</em>
+        </div>
+      `;
+    } else {
+      ssNoticeEl.style.display = 'none';
+      ssNoticeEl.innerHTML = '';
+    }
+  }
+
   openModal('modal-start-inspection');
 }
 
@@ -242,6 +266,17 @@ function initInspectionEvents() {
       }
 
       const equipment = Storage.getEquipmentById(eqId);
+      const currentEqHourmeter = Number(equipment.hourmeter) || 0;
+      if (isNaN(hourmeter) || hourmeter < 0) {
+        showToast('Informe um horímetro válido (numérico)!', 'danger');
+        return;
+      }
+
+      if (hourmeter < currentEqHourmeter) {
+        showToast(`Horímetro inconsistente! O horímetro informado (${hourmeter} h) não pode ser inferior ao já registrado no Engeman® (${currentEqHourmeter} h).`, 'danger');
+        return;
+      }
+
       InspectionEngine.startNewInspection(equipment, {
         firstName: firstName,
         lastName: lastName,
@@ -286,6 +321,18 @@ function initInspectionEvents() {
       e.preventDefault();
       const opinionText = document.getElementById('tech-opinion-input').value.trim();
       
+      // Validação de assinatura obrigatória
+      if (!AppState.hasSignatureStroke) {
+        showToast('Assinatura digital obrigatória! O inspetor deve assinar no quadro de assinatura antes de finalizar.', 'danger');
+        const sigCanvas = document.getElementById('canvas-inspector-signature');
+        if (sigCanvas) {
+          sigCanvas.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          sigCanvas.style.border = '2px solid #EF4444';
+          setTimeout(() => { sigCanvas.style.border = '1px solid #CBD5E1'; }, 2500);
+        }
+        return;
+      }
+
       let signatureData = null;
       if (AppState.signatureCanvas) {
         signatureData = AppState.signatureCanvas.toDataURL('image/png');
@@ -293,31 +340,37 @@ function initInspectionEvents() {
 
       const currentInsp = InspectionEngine.currentInspection;
       const aiAppraisal = currentInsp?.aiExpertAppraisal || null;
-      const completed = InspectionEngine.finishInspection(opinionText, signatureData, aiAppraisal);
-      if (completed) {
-        // Sincronização em nuvem resiliente com Appwrite Cloud (offline-first)
-        appwriteClient.syncInspection(completed);
 
-        refreshDashboard();
-        refreshPCMView();
-        refreshHistory();
+      try {
+        const completed = InspectionEngine.finishInspection(opinionText, signatureData, aiAppraisal);
+        if (completed) {
+          // Sincronização em nuvem resiliente com Appwrite Cloud (offline-first)
+          appwriteClient.syncInspection(completed);
 
-        if (completed.finalStatus === 'liberado') {
-          showToast('✓ Equipamento 100% Conforme! LIBERADO para operação!', 'success');
-          openReportModal(completed);
-        } else {
-          showToast(`⛔ Equipamento REPROVADO e BLOQUEADO! S.S. ${completed.associatedServiceRequest} enviada ao PCM.`, 'danger');
-          
-          // Exibe o E-mail enviado ao PCM imediatamente
-          const requests = Storage.getServiceRequests();
-          const targetSS = requests.find(s => s.id === completed.associatedServiceRequest);
-          if (targetSS) {
-            appwriteClient.syncPCMRequest(targetSS);
-            openPCMEmailModal(targetSS);
-          } else {
+          refreshDashboard();
+          refreshPCMView();
+          refreshHistory();
+
+          if (completed.finalStatus === 'liberado') {
+            showToast('✓ Equipamento 100% Conforme! LIBERADO para operação!', 'success');
             openReportModal(completed);
+          } else {
+            showToast(`⛔ Equipamento REPROVADO e BLOQUEADO! S.S. ${completed.associatedServiceRequest} enviada ao PCM.`, 'danger');
+            
+            // Exibe o E-mail enviado ao PCM imediatamente
+            const requests = Storage.getServiceRequests();
+            const targetSS = requests.find(s => s.id === completed.associatedServiceRequest);
+            if (targetSS) {
+              appwriteClient.syncPCMRequest(targetSS);
+              openPCMEmailModal(targetSS);
+            } else {
+              openReportModal(completed);
+            }
           }
         }
+      } catch (err) {
+        showToast(err.message, 'danger');
+        return;
       }
     });
   }
@@ -778,6 +831,7 @@ function initSignaturePad() {
   const canvas = document.getElementById('canvas-inspector-signature');
   if (!canvas) return;
 
+  AppState.hasSignatureStroke = false;
   AppState.signatureCanvas = canvas;
   const ctx = canvas.getContext('2d');
   AppState.signatureCtx = ctx;
@@ -799,6 +853,7 @@ function initSignaturePad() {
 
   function startDraw(e) {
     AppState.isDrawingSignature = true;
+    AppState.hasSignatureStroke = true;
     const pos = getPos(e);
     ctx.beginPath();
     ctx.moveTo(pos.x, pos.y);
@@ -807,6 +862,7 @@ function initSignaturePad() {
 
   function draw(e) {
     if (!AppState.isDrawingSignature) return;
+    AppState.hasSignatureStroke = true;
     const pos = getPos(e);
     ctx.lineTo(pos.x, pos.y);
     ctx.stroke();
@@ -829,6 +885,7 @@ function initSignaturePad() {
   if (btnClear) {
     btnClear.addEventListener('click', () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      AppState.hasSignatureStroke = false;
     });
   }
 }

@@ -4,6 +4,7 @@
  */
 
 import { aiCopilot } from './aiCopilot.js';
+import { escapeHTML } from '../utils.js';
 
 export const ReportGenerator = {
   /**
@@ -48,8 +49,8 @@ export const ReportGenerator = {
             </div>
             <div class="report-meta-box">
               <span class="report-doc-title">LAUDO TÉCNICO PERICIAL DE INSPEÇÃO</span>
-              <span class="report-doc-id">Nº ${inspection.id}</span>
-              <span class="report-doc-date">Emissão: ${inspection.formattedDate} às ${inspection.formattedTime}</span>
+              <span class="report-doc-id">Nº ${escapeHTML(inspection.id)}</span>
+              <span class="report-doc-date">Emissão: ${escapeHTML(inspection.formattedDate)} às ${escapeHTML(inspection.formattedTime)}</span>
             </div>
           </div>
         </header>
@@ -61,7 +62,7 @@ export const ReportGenerator = {
             <h2>${statusText}</h2>
             <p>${isApproved 
               ? 'Equipamento aprovado com 100% de conformidade visual, mecânica, estrutural e testes de operação plena.' 
-              : `EQUIPAMENTO BLOQUEADO: ${inspection.blockReason || 'Detectadas não-conformidades impeditivas.'} ${inspection.associatedServiceRequest ? 'Solicitação de Serviço encaminhada ao PCM: <strong>' + inspection.associatedServiceRequest + '</strong> (e-mail enviado).' : ''}`}</p>
+              : `EQUIPAMENTO BLOQUEADO: ${escapeHTML(inspection.blockReason || 'Detectadas não-conformidades impeditivas.')} ${inspection.associatedServiceRequest ? 'Solicitação de Serviço encaminhada ao PCM: <strong>' + escapeHTML(inspection.associatedServiceRequest) + '</strong> (e-mail enviado).' : ''}`}</p>
           </div>
           <div class="banner-qr" id="report-qr-code-box">
             <!-- Canvas do QR Code inserido dinamicamente -->
@@ -75,27 +76,27 @@ export const ReportGenerator = {
             <table class="report-table-info">
               <tr>
                 <td><strong>Prefixo / TAG:</strong></td>
-                <td class="tag-highlight">${inspection.equipmentTag}</td>
+                <td class="tag-highlight">${escapeHTML(inspection.equipmentTag)}</td>
                 <td><strong>Tipo de Equipamento:</strong></td>
-                <td>${inspection.equipmentTypeName || inspection.equipmentType.toUpperCase()}</td>
+                <td>${escapeHTML(inspection.equipmentTypeName || inspection.equipmentType.toUpperCase())}</td>
               </tr>
               <tr>
                 <td><strong>Marca / Modelo:</strong></td>
-                <td>${inspection.equipmentName}</td>
+                <td>${escapeHTML(inspection.equipmentName)}</td>
                 <td><strong>Chassi / Nº Série:</strong></td>
-                <td>${inspection.equipmentDetails?.serialNumber || 'N/A'}</td>
+                <td>${escapeHTML(inspection.equipmentDetails?.serialNumber || 'N/A')}</td>
               </tr>
               <tr>
                 <td><strong>Capacidade Máxima:</strong></td>
-                <td>${inspection.equipmentDetails?.capacity || 'N/A'}</td>
+                <td>${escapeHTML(inspection.equipmentDetails?.capacity || 'N/A')}</td>
                 <td><strong>Ano Fabricação:</strong></td>
-                <td>${inspection.equipmentDetails?.year || 'N/A'}</td>
+                <td>${escapeHTML(inspection.equipmentDetails?.year || 'N/A')}</td>
               </tr>
               <tr>
                 <td><strong>Horímetro Registrado:</strong></td>
-                <td><strong>${inspection.hourmeter} Horas</strong></td>
+                <td><strong>${escapeHTML(inspection.hourmeter)} Horas</strong></td>
                 <td><strong>Filial / Base Operacional:</strong></td>
-                <td>${inspection.equipmentDetails?.branch || 'Locar Matriz'}</td>
+                <td>${escapeHTML(inspection.equipmentDetails?.branch || 'Locar Matriz')}</td>
               </tr>
             </table>
           </div>
@@ -105,11 +106,11 @@ export const ReportGenerator = {
             <table class="report-table-info">
               <tr>
                 <td><strong>Inspetor Responsável:</strong></td>
-                <td><strong>${inspection.inspectorFullName || inspection.inspectorName || 'Inspetor Técnico Locar'}</strong></td>
+                <td><strong>${escapeHTML(inspection.inspectorFullName || inspection.inspectorName || 'Inspetor Técnico Locar')}</strong></td>
               </tr>
               <tr>
                 <td><strong>Telefone de Contato:</strong></td>
-                <td><strong style="color:#B45309;">${inspection.inspectorPhone || 'Não informado'}</strong></td>
+                <td><strong style="color:#B45309;">${escapeHTML(inspection.inspectorPhone || 'Não informado')}</strong></td>
               </tr>
               <tr>
                 <td><strong>Função / Responsabilidade:</strong></td>
@@ -117,11 +118,11 @@ export const ReportGenerator = {
               </tr>
               <tr>
                 <td><strong>Turno da Vistoria:</strong></td>
-                <td>${inspection.inspectorShift}</td>
+                <td>${escapeHTML(inspection.inspectorShift)}</td>
               </tr>
               <tr>
                 <td><strong>Normas de Referência:</strong></td>
-                <td>${inspection.normativeRef}</td>
+                <td>${escapeHTML(inspection.normativeRef)}</td>
               </tr>
             </table>
           </div>
@@ -144,9 +145,9 @@ export const ReportGenerator = {
               <tbody>
                 ${nonConformities.map(nc => `
                   <tr>
-                    <td><strong>${nc.label}</strong></td>
-                    <td><span class="norm-badge">${nc.norm}</span></td>
-                    <td>${nc.observation || 'Não especificado'}</td>
+                    <td><strong>${escapeHTML(nc.label)}</strong></td>
+                    <td><span class="norm-badge">${escapeHTML(nc.norm)}</span></td>
+                    <td>${escapeHTML(nc.observation || 'Não especificado')}</td>
                     <td><span class="severity-tag ${nc.sectionId === 'visual_identity' ? 'sev-visual' : 'sev-func'}">
                       ${nc.sectionId === 'visual_identity' ? 'Avaria Visual / Identidade' : 'Falha Crítica de Operação'}
                     </span></td>
@@ -173,16 +174,16 @@ export const ReportGenerator = {
               ${answersList.map(a => `
                 <tr class="${a.status === 'nao_conforme' ? 'row-nc' : 'row-ok'}">
                   <td>
-                    <strong>${a.label}</strong>
+                    <strong>${escapeHTML(a.label)}</strong>
                     ${a.requiresPhoto ? '<span class="evid-badge">📷 Evidenciado</span>' : ''}
                   </td>
-                  <td><span class="norm-tag">${a.norm}</span></td>
+                  <td><span class="norm-tag">${escapeHTML(a.norm)}</span></td>
                   <td>
                     <span class="res-badge ${a.status === 'nao_conforme' ? 'badge-nc' : 'badge-ok'}">
                       ${a.status === 'nao_conforme' ? '✖ NÃO CONFORME' : '✓ CONFORME'}
                     </span>
                   </td>
-                  <td>${a.observation || '-'}</td>
+                  <td>${escapeHTML(a.observation || '-')}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -203,8 +204,8 @@ export const ReportGenerator = {
                     </span>
                   </div>
                   <div class="photo-caption">
-                    <strong>Evidência #${idx + 1}:</strong> ${p.label}
-                    ${p.observation ? `<p class="photo-obs">${p.observation}</p>` : ''}
+                    <strong>Evidência #${idx + 1}:</strong> ${escapeHTML(p.label)}
+                    ${p.observation ? `<p class="photo-obs">${escapeHTML(p.observation)}</p>` : ''}
                     <div style="margin-top:4px; font-size:0.7rem; color:#059669; font-weight:bold;">
                       ✓ Auditado por Locar AI Vision (Score: 96% Confiabilidade)
                     </div>
@@ -226,16 +227,16 @@ export const ReportGenerator = {
               CERTIFICADO DIGITAL FORENSE
             </span>
           </div>
-          <pre style="white-space:pre-wrap; font-family:var(--font-body), sans-serif; font-size:0.85rem; line-height:1.5; color:#E2E8F0; margin:0;">${aiAppraisalText}</pre>
+          <pre style="white-space:pre-wrap; font-family:var(--font-body), sans-serif; font-size:0.85rem; line-height:1.5; color:#E2E8F0; margin:0;">${escapeHTML(aiAppraisalText)}</pre>
         </div>
 
         <!-- PARECER TÉCNICO E ASSINATURAS -->
         <div class="report-section report-signatures">
           <div class="technical-opinion-box">
             <h4>Parecer Conclusivo da Engenharia / Inspetor:</h4>
-            <p>${inspection.technicalOpinion || (isApproved 
+            <p>${escapeHTML(inspection.technicalOpinion || (isApproved 
               ? 'Atesto que o presente equipamento foi submetido a rigorosa inspeção visual, dimensional e a testes práticos em todas as suas funções e comandos operacionais, atendendo integralmente aos padrões de segurança das Normas Regulamentadoras vigentes e aos requisitos de qualidade e identidade visual da Locar Guindastes e Transportes Intermodais.' 
-              : 'Equipamento REPROVADO formalmente e retido. Solicitação de Serviço gerada e enviada por e-mail para o Planejamento e Controle de Manutenção (PCM) para abertura de programação de reparo.')}
+              : 'Equipamento REPROVADO formalmente e retido. Solicitação de Serviço gerada e enviada por e-mail para o Planejamento e Controle de Manutenção (PCM) para abertura de programação de reparo.'))}
             </p>
           </div>
 
@@ -244,8 +245,8 @@ export const ReportGenerator = {
               <div class="signature-line">
                 ${inspection.inspectorSignature ? `<img src="${inspection.inspectorSignature}" alt="Assinatura" class="sig-img" />` : '<div class="sig-placeholder">Assinatura Digitalizada Válida</div>'}
               </div>
-              <p class="sig-name">${inspection.inspectorFullName || inspection.inspectorName || 'Engenheiro / Técnico Responsável'}</p>
-              <p class="sig-reg" style="color:#B45309; font-weight:700;">Tel: ${inspection.inspectorPhone || 'Não informado'}</p>
+              <p class="sig-name">${escapeHTML(inspection.inspectorFullName || inspection.inspectorName || 'Engenheiro / Técnico Responsável')}</p>
+              <p class="sig-reg" style="color:#B45309; font-weight:700;">Tel: ${escapeHTML(inspection.inspectorPhone || 'Não informado')}</p>
               <p class="sig-role">Inspetor Técnico Homologado Locar</p>
             </div>
 

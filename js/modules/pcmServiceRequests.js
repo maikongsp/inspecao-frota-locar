@@ -4,6 +4,7 @@
  */
 
 import { Storage } from '../storage.js';
+import { escapeHTML } from '../utils.js';
 
 export const PCMServiceRequests = {
   /**
@@ -94,31 +95,31 @@ Locar Guindastes e Transportes Intermodais S/A
           <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:13px;">
             <tr style="background:#F8FAFC;">
               <td style="padding:8px 12px; border:1px solid #E2E8F0; width:35%;"><strong>Número da S.S.:</strong></td>
-              <td style="padding:8px 12px; border:1px solid #E2E8F0; font-family:monospace; font-weight:bold; color:#B45309;">${ss.id}</td>
+              <td style="padding:8px 12px; border:1px solid #E2E8F0; font-family:monospace; font-weight:bold; color:#B45309;">${escapeHTML(ss.id)}</td>
             </tr>
             <tr>
               <td style="padding:8px 12px; border:1px solid #E2E8F0;"><strong>Equipamento / TAG:</strong></td>
-              <td style="padding:8px 12px; border:1px solid #E2E8F0; font-weight:bold; color:#14171D;">${ss.equipmentTag} - ${ss.equipmentName}</td>
+              <td style="padding:8px 12px; border:1px solid #E2E8F0; font-weight:bold; color:#14171D;">${escapeHTML(ss.equipmentTag)} - ${escapeHTML(ss.equipmentName)}</td>
             </tr>
             <tr style="background:#F8FAFC;">
               <td style="padding:8px 12px; border:1px solid #E2E8F0;"><strong>Filial / Base:</strong></td>
-              <td style="padding:8px 12px; border:1px solid #E2E8F0;">${ss.branch || 'Locar Matriz'}</td>
+              <td style="padding:8px 12px; border:1px solid #E2E8F0;">${escapeHTML(ss.branch || 'Locar Matriz')}</td>
             </tr>
             <tr>
               <td style="padding:8px 12px; border:1px solid #E2E8F0;"><strong>Horímetro Registrado:</strong></td>
-              <td style="padding:8px 12px; border:1px solid #E2E8F0;">${ss.hourmeter || 'N/A'} h</td>
+              <td style="padding:8px 12px; border:1px solid #E2E8F0;">${escapeHTML(ss.hourmeter || 'N/A')} h</td>
             </tr>
             <tr style="background:#F8FAFC;">
               <td style="padding:8px 12px; border:1px solid #E2E8F0;"><strong>Data / Inspetor:</strong></td>
-              <td style="padding:8px 12px; border:1px solid #E2E8F0;">${ss.openedDate} por <strong>${ss.openedBy}</strong></td>
+              <td style="padding:8px 12px; border:1px solid #E2E8F0;">${escapeHTML(ss.openedDate)} por <strong>${escapeHTML(ss.openedBy)}</strong></td>
             </tr>
             <tr>
               <td style="padding:8px 12px; border:1px solid #E2E8F0;"><strong>Tel. Contato Inspetor:</strong></td>
-              <td style="padding:8px 12px; border:1px solid #E2E8F0; font-weight:bold; color:#B45309;">${ss.inspectorPhone || 'Não informado'}</td>
+              <td style="padding:8px 12px; border:1px solid #E2E8F0; font-weight:bold; color:#B45309;">${escapeHTML(ss.inspectorPhone || 'Não informado')}</td>
             </tr>
             <tr style="background:#F8FAFC;">
               <td style="padding:8px 12px; border:1px solid #E2E8F0;"><strong>E-mail do PCM:</strong></td>
-              <td style="padding:8px 12px; border:1px solid #E2E8F0; color:#2563EB;">${recipient}</td>
+              <td style="padding:8px 12px; border:1px solid #E2E8F0; color:#2563EB;">${escapeHTML(recipient)}</td>
             </tr>
           </table>
 
@@ -128,11 +129,11 @@ Locar Guindastes e Transportes Intermodais S/A
             ${(ss.nonConformities || []).map((nc, idx) => `
               <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:6px; padding:12px; margin-bottom:10px;">
                 <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                  <strong style="color:#0F172A; font-size:13px;">#${idx + 1} - ${nc.item}</strong>
-                  <span style="font-size:11px; background:#FEF3C7; color:#92400E; padding:2px 6px; border-radius:3px; font-weight:bold;">${nc.norm}</span>
+                  <strong style="color:#0F172A; font-size:13px;">#${idx + 1} - ${escapeHTML(nc.item)}</strong>
+                  <span style="font-size:11px; background:#FEF3C7; color:#92400E; padding:2px 6px; border-radius:3px; font-weight:bold;">${escapeHTML(nc.norm)}</span>
                 </div>
                 <div style="font-size:12px; color:#EF4444; font-weight:600; margin-bottom:6px;">
-                  Defeito Apontado: ${nc.note}
+                  Defeito Apontado: ${escapeHTML(nc.note)}
                 </div>
                 ${nc.photo ? `
                   <div style="margin-top:8px;">
@@ -192,37 +193,37 @@ Locar Guindastes e Transportes Intermodais S/A
         em_planejamento: '<span class="badge badge-warning">Em Planejamento no PCM</span>',
         em_execucao: '<span class="badge badge-warning">Em Execução na Oficina</span>',
         concluida: '<span class="badge badge-success">Serviço Concluído (Pronto p/ Reinspeção)</span>'
-      }[ss.status] || `<span class="badge">${ss.status}</span>`;
+      }[ss.status] || `<span class="badge">${escapeHTML(ss.status)}</span>`;
 
       const typeLabel = {
         pta: 'Plataforma Elevatória',
         guindaste: 'Guindaste',
         empilhadeira: 'Empilhadeira'
-      }[ss.type] || ss.type.toUpperCase();
+      }[ss.type] || escapeHTML(ss.type.toUpperCase());
 
       return `
-        <div class="os-card" data-ss-id="${ss.id}">
+        <div class="os-card" data-ss-id="${escapeHTML(ss.id)}">
           <div class="os-card-header">
             <div class="os-header-left">
-              <span class="os-id">${ss.id}</span>
-              <span class="os-tag">${ss.equipmentTag}</span>
+              <span class="os-id">${escapeHTML(ss.id)}</span>
+              <span class="os-tag">${escapeHTML(ss.equipmentTag)}</span>
               <span class="os-type-tag">${typeLabel}</span>
             </div>
             <div class="os-header-right" style="display:flex; align-items:center; gap:0.5rem;">
               <span class="badge" style="background:rgba(59,130,246,0.15); color:#60A5FA; border:1px solid rgba(59,130,246,0.3);">
-                ✉ E-mail Enviado ao PCM (${ss.pcmRecipient || 'pcm@locar.com.br'})
+                ✉ E-mail Enviado ao PCM (${escapeHTML(ss.pcmRecipient || 'pcm@locar.com.br')})
               </span>
               ${statusBadge}
             </div>
           </div>
 
           <div class="os-card-body">
-            <h4 class="os-equipment-name">${ss.equipmentName}</h4>
+            <h4 class="os-equipment-name">${escapeHTML(ss.equipmentName)}</h4>
             <p class="os-date">
-              Abertura: <strong>${ss.openedDate}</strong> | 
-              Inspetor: <strong>${ss.openedBy}</strong> | 
-              Tel. Contato: <strong style="color:var(--locar-yellow);">${ss.inspectorPhone || 'Não informado'}</strong> | 
-              Filial: <strong>${ss.branch || '2-Betim'}</strong>
+              Abertura: <strong>${escapeHTML(ss.openedDate)}</strong> | 
+              Inspetor: <strong>${escapeHTML(ss.openedBy)}</strong> | 
+              Tel. Contato: <strong style="color:var(--locar-yellow);">${escapeHTML(ss.inspectorPhone || 'Não informado')}</strong> | 
+              Filial: <strong>${escapeHTML(ss.branch || '2-Betim')}</strong>
             </p>
             
             <div class="os-nc-list">
@@ -230,8 +231,8 @@ Locar Guindastes e Transportes Intermodais S/A
               <ul>
                 ${(ss.nonConformities || []).map(nc => `
                   <li>
-                    <strong>[${nc.type || 'Critério'}]:</strong> ${nc.item} - 
-                    <span class="nc-note">${nc.note}</span>
+                    <strong>[${escapeHTML(nc.type || 'Critério')}]:</strong> ${escapeHTML(nc.item)} - 
+                    <span class="nc-note">${escapeHTML(nc.note)}</span>
                     ${nc.photo ? `<button class="btn-view-evidence" data-photo="${nc.photo}" title="Ver foto">📷 Foto</button>` : ''}
                   </li>
                 `).join('')}
@@ -240,14 +241,14 @@ Locar Guindastes e Transportes Intermodais S/A
 
             <div class="os-solution-box">
               <label><strong>Parecer e Acompanhamento do PCM:</strong></label>
-              <p class="solution-text">${ss.solutionNotes || 'Aguardando cronograma de planejamento de recursos e oficina pelo PCM.'}</p>
+              <p class="solution-text">${escapeHTML(ss.solutionNotes || 'Aguardando cronograma de planejamento de recursos e oficina pelo PCM.')}</p>
             </div>
           </div>
 
           <div class="os-card-footer">
             <div class="os-actions" style="flex-wrap:wrap;">
               ${ss.status !== 'concluida' ? `
-                <button class="btn btn-sm btn-outline-warning btn-advance-ss" data-id="${ss.id}" data-current="${ss.status}">
+                <button class="btn btn-sm btn-outline-warning btn-advance-ss" data-id="${escapeHTML(ss.id)}" data-current="${escapeHTML(ss.status)}">
                   ${ss.status === 'aberta' ? '▶ PCM: Iniciar Planejamento' : (ss.status === 'em_planejamento' ? '⚙ Enviar para Oficina' : '✓ Concluir Reparo')}
                 </button>
               ` : `

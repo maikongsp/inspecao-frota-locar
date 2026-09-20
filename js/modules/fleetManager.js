@@ -15,8 +15,12 @@ export const FleetManager = {
     const total = fleet.length;
     const disponiveis = fleet.filter(e => e.status === 'disponivel').length;
     const manutencao = fleet.filter(e => e.status === 'manutencao').length;
+    const bloqueados = fleet.filter(e => e.status === 'bloqueado').length;
     const locadas = fleet.filter(e => e.status === 'locada').length;
     const taxaAprovacao = total > 0 ? Math.round(((disponiveis + locadas) / total) * 100) : 0;
+
+    const badgeBloq = document.getElementById('badge-count-bloqueados');
+    if (badgeBloq) badgeBloq.textContent = bloqueados;
 
     // Métricas segregadas por Categoria (PTA, Guindastes, Empilhadeiras)
     const getCatStats = (catType) => {

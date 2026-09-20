@@ -6,7 +6,7 @@
  * registre fotos e emita laudos mesmo sem conexão à internet.
  */
 
-const CACHE_NAME = 'locar-inspecao-v2.6';
+const CACHE_NAME = 'locar-inspecao-v2.7';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -14,6 +14,7 @@ const ASSETS_TO_CACHE = [
     './css/main.css',
     './css/components.css',
     './css/print.css',
+    './js/utils.js',
     './js/app.js',
     './js/storage.js',
     './js/appwriteClient.js',

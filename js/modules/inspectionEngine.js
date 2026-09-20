@@ -173,17 +173,63 @@ export const InspectionEngine = {
   },
 
   /**
-   * Finaliza a inspeção:
-   * - Se houver QUALQUER não conformidade: Bloqueia a máquina, envia para manutenção,
-   *   gera SOLICITAÇÃO DE SERVIÇO (S.S.) PARA O PCM e dispara o e-mail padrão.
-   * - Se 100% conforme: Libera para a frota operacional.
+   * Valida se todos os itens de todas as seções foram inspecionados
+   */
+  getChecklistCompletionStatus() {
+    if (!this.currentInspection) return { complete: false, total: 0, answered: 0, pending: 0 };
+    const checklistConfig = CHECKLIST_NORMS[this.currentInspection.equipmentType];
+    if (!checklistConfig) return { complete: false, total: 0, answered: 0, pending: 0 };
+
+    let total = 0;
+    const missingItems = [];
+
+    checklistConfig.sections.forEach(sec => {
+      sec.items.forEach(item => {
+        total++;
+        const ans = this.currentInspection.answers[item.id];
+        if (!ans || !ans.status) {
+          missingItems.push({ id: item.id, label: item.label, section: sec.title });
+        }
+      });
+    });
+
+    const answered = total - missingItems.length;
+    return {
+      complete: missingItems.length === 0,
+      total,
+      answered,
+      pending: missingItems.length,
+      missingItems
+    };
+  },
+
+  /**
+   * Finaliza a inspeção com validação estrita anti-liberação indevida:
+   * - Exige que 100% dos itens normativos tenham sido respondidos.
+   * - Exige assinatura digital válida do inspetor.
+   * - Se houver QUALQUER não conformidade: Bloqueia a máquina, retém em MANUTENÇÃO
+   *   e gera Solicitação de Serviço ao PCM.
+   * - Se 100% conforme: Libera para DISPONÍVEL e encerra S.S. anterior se houver.
    */
   finishInspection(technicalOpinion = '', signature = null, aiExpertAppraisal = null) {
-    if (!this.currentInspection) return null;
+    if (!this.currentInspection) {
+      throw new Error('Nenhuma inspeção ativa para ser finalizada.');
+    }
+
+    // 1. Validação estrita: 100% dos itens devem estar inspecionados
+    const completion = this.getChecklistCompletionStatus();
+    if (!completion.complete) {
+      throw new Error(`Inspeção incompleta! Existem ${completion.pending} item(ns) normativo(s) obrigatório(s) sem resposta. Todos os itens de todas as seções devem ser verificados antes da liberação.`);
+    }
+
+    // 2. Validação estrita: Assinatura obrigatória do inspetor
+    if (!signature || typeof signature !== 'string' || signature.length < 100) {
+      throw new Error('Assinatura digital do inspetor é obrigatória para emissão do laudo técnico pericial.');
+    }
 
     this.recalculateInspectionStatus();
     this.currentInspection.finishedAt = new Date().toISOString();
-    this.currentInspection.technicalOpinion = technicalOpinion;
+    this.currentInspection.technicalOpinion = technicalOpinion || 'Inspeção técnica normativa realizada.';
     this.currentInspection.inspectorSignature = signature;
     if (aiExpertAppraisal) {
       this.currentInspection.aiExpertAppraisal = aiExpertAppraisal;
@@ -192,7 +238,7 @@ export const InspectionEngine = {
     const hasNC = this.currentInspection.totalNonConformities > 0;
 
     if (hasNC) {
-      // REPROVADO E BLOQUEADO
+      // REPROVADO E BLOQUEADO - TOLERÂNCIA ZERO
       this.currentInspection.finalStatus = 'reprovado_bloqueado';
       this.currentInspection.verdict = 'BLOQUEADO PARA OPERAÇÃO - SOLICITAÇÃO ENVIADA AO PCM';
 
@@ -220,7 +266,12 @@ export const InspectionEngine = {
       );
 
     } else {
-      // 100% APROVADO E LIBERADO
+      // 100% APROVADO E LIBERADO - VALIDAÇÃO COMPLETA
+      const answeredConforme = Object.values(this.currentInspection.answers).filter(a => a.status === 'conforme').length;
+      if (answeredConforme !== completion.total) {
+        throw new Error('Erro de integridade no checklist: a quantidade de itens aprovados não corresponde à totalidade exigida.');
+      }
+
       this.currentInspection.finalStatus = 'liberado';
       this.currentInspection.verdict = 'EQUIPAMENTO 100% CONFORME - LIBERADO PARA OPERAÇÃO / LOCAÇÃO';
       this.currentInspection.blockReason = null;
@@ -234,6 +285,24 @@ export const InspectionEngine = {
         `${this.currentInspection.inspectorName} (Tel: ${this.currentInspection.inspectorPhone || 'Registrado'})`,
         'Inspecionado e aprovado com 100% de conformidade visual, mecânica e testes funcionais.'
       );
+
+      // Se havia Solicitação de Serviço pendente no PCM para este equipamento, registra a baixa técnica
+      try {
+        const activeRequests = Storage.getServiceRequests();
+        const openSS = activeRequests.find(s => 
+          (s.equipmentId === this.currentInspection.equipmentId || s.equipmentTag === this.currentInspection.equipmentTag) && 
+          s.status !== 'concluida'
+        );
+        if (openSS) {
+          Storage.updateServiceRequestStatus(
+            openSS.id,
+            'concluida',
+            `Equipamento reinspecionado e 100% APROVADO no Laudo ${this.currentInspection.id} em ${this.currentInspection.formattedDate}. Manutenção e itens corretivos validados.`
+          );
+        }
+      } catch (errSS) {
+        console.warn('Aviso ao sincronizar S.S. anterior:', errSS);
+      }
     }
 
     // Persiste inspeção no histórico permanente

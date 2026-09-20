@@ -100,6 +100,7 @@
           <button class="filter-btn filter-status-btn" data-status="disponivel">Disponíveis <span class="filter-badge" style="color:#22C55E;">70</span></button>
           <button class="filter-btn filter-status-btn" data-status="locada">Locadas <span class="filter-badge" style="color:#38BDF8;">103</span></button>
           <button class="filter-btn filter-status-btn" data-status="manutencao">Em Manutenção <span class="filter-badge" style="color:#F59E0B;">100</span></button>
+          <button class="filter-btn filter-status-btn" data-status="bloqueado">Bloqueados <span class="filter-badge" style="color:#EF4444;" id="badge-count-bloqueados">0</span></button>
         </div>
 
         <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
@@ -346,6 +347,9 @@
             <div style="font-family:var(--font-heading); font-size:1.2rem; font-weight:800; color:var(--locar-yellow);" id="modal-start-tag">---</div>
             <div style="font-size:0.85rem; color:var(--text-secondary);" id="modal-start-name">---</div>
           </div>
+
+          <!-- AVISO DE S.S. PENDENTE NO PCM -->
+          <div id="modal-start-ss-notice" style="display:none;"></div>
 
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
             <div>

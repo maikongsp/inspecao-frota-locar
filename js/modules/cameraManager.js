@@ -213,8 +213,16 @@ export const CameraManager = {
     ctx.font = 'bold 14px "Segoe UI", Arial, sans-serif';
     ctx.fillText(status === 'conforme' ? '[ CONFORME COM A NORMA ]' : '[ NÃO CONFORME - REPROVADO ]', 320, 365);
 
+    // Faixa superior de advertência de simulação (Prevenção de Fraude)
+    ctx.fillStyle = '#EF4444';
+    ctx.fillRect(0, 0, 640, 28);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('⚠ FOTO SIMULADA (AMBIENTE DE TESTE) - NÃO SUBSTITUI FOTO REAL DA MÁQUINA NO PÁTIO', 320, 18);
+
     // Marca d'água técnica inferior
-    this.drawTechnicalWatermark(ctx, 640, 480, equipmentTag, itemLabel);
+    this.drawTechnicalWatermark(ctx, 640, 480, equipmentTag, itemLabel, true);
 
     return canvas.toDataURL('image/jpeg', 0.85);
   },
@@ -222,7 +230,7 @@ export const CameraManager = {
   /**
    * Aplica marca d'água com dados forenses da vistoria
    */
-  drawTechnicalWatermark(ctx, width, height, equipmentTag, itemLabel) {
+  drawTechnicalWatermark(ctx, width, height, equipmentTag, itemLabel, isSimulated = false) {
     const now = new Date();
     const dateStr = now.toLocaleDateString('pt-BR');
     const timeStr = now.toLocaleTimeString('pt-BR');
@@ -232,17 +240,17 @@ export const CameraManager = {
     ctx.fillRect(0, height - 38, width, 38);
 
     // Faixa amarela oficial Locar no topo da faixa
-    ctx.fillStyle = '#FFF212';
+    ctx.fillStyle = isSimulated ? '#EF4444' : '#FFF212';
     ctx.fillRect(0, height - 38, width, 2);
 
     // Texto da marca d'água
     ctx.fillStyle = '#FFFFFF';
     ctx.font = '10px "Segoe UI", Arial, monospace';
     ctx.textAlign = 'left';
-    ctx.fillText(`TAG: ${equipmentTag} | DATA: ${dateStr} ${timeStr} | LOCAR INSPEÇÃO TÉCNICA OFICIAL`, 12, height - 16);
+    ctx.fillText(`TAG: ${equipmentTag} | DATA: ${dateStr} ${timeStr} | LOCAR INSPEÇÃO ${isSimulated ? '[SIMULADA]' : 'REAL'}`, 12, height - 16);
 
-    ctx.fillStyle = '#FFF212';
+    ctx.fillStyle = isSimulated ? '#EF4444' : '#FFF212';
     ctx.textAlign = 'right';
-    ctx.fillText(`EVIDÊNCIA AUDITÁVEL`, width - 12, height - 16);
+    ctx.fillText(isSimulated ? 'TESTE / SIMULAÇÃO' : 'EVIDÊNCIA AUDITÁVEL', width - 12, height - 16);
   }
 };
