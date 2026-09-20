@@ -23,7 +23,7 @@ export const FleetManager = {
       <div class="kpi-card">
         <div class="kpi-icon-box kpi-icon-total">🚜</div>
         <div class="kpi-details">
-          <span class="kpi-label">Frota CMMS Betim/MG</span>
+          <span class="kpi-label">Frota Engeman® CMMS | Betim/MG</span>
           <span class="kpi-value">${total}</span>
           <span class="kpi-sub">PTA (245), Guindastes (26), Empilhadeiras (2)</span>
         </div>

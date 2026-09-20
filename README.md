@@ -23,12 +23,12 @@ Sistema industrial para inspeção técnica regulamentar, conformidade visual es
   * Sugere automaticamente códigos de falha do CMMS, risco operacional e ação recomendada de manutenção.
   * Emite **Parecer Pericial Técnico Automatizado** formal de engenharia no Laudo Pericial.
 
-### 3. Dados Reais do CMMS Oficial da Locar Betim
-* **273 Equipamentos Reais Ativos:**
+### 3. Dados Reais do Engeman® - CMMS Oficial da Locar Betim
+* **273 Equipamentos Reais Ativos (Sincronizados com o Engeman®):**
   * **245 Plataformas Elevatórias (PTA):** Genie (Z-45, Z-60, S-65, GS-2646...), JLG, Haulotte.
   * **26 Guindastes Industriais:** Liebherr (LTM 1090, LTM 1100, LTM 1220, LTM 1500...), Grove, Tadano, XCMG.
   * **2 Empilhadeiras Operacionais:** Yale GLP 25 VX e Hyster H50FT.
-* **Identificação Obrigatória do Inspetor:** Todo laudo e solicitação do PCM registra compulsoriamente **Nome**, **Sobrenome**, **Telefone de Contato (WhatsApp)** e registro profissional do inspetor.
+* **Identificação Obrigatória do Inspetor:** Todo laudo e solicitação do PCM registra compulsoriamente **Nome**, **Sobrenome** e **Telefone de Contato (WhatsApp)** do responsável pela vistoria no pátio.
 
 ### 4. Recursos Mobile & Pátio (PWA Offline-First)
 * **Instalável no Celular/Tablet (PWA):** Funciona mesmo em áreas do pátio de Betim sem cobertura 4G/Wi-Fi via Service Worker.

@@ -50,7 +50,7 @@ export const Storage = {
     }
   },
 
-  // --- GESTÃO DA FROTA REAL (CMMS BETIM) ---
+  // --- GESTÃO DA FROTA REAL (ENGEMAN® CMMS BETIM) ---
   getFleet() {
     this.clearLegacyData();
     try {
@@ -62,9 +62,9 @@ export const Storage = {
         }
       }
     } catch (e) {
-      console.warn('Erro ao ler frota do localStorage, recarregando dados do CMMS Betim:', e);
+      console.warn('Erro ao ler frota do localStorage, recarregando dados do Engeman® CMMS Betim:', e);
     }
-    // Inicializa com a frota oficial de 273 equipamentos do CMMS
+    // Inicializa com a frota oficial de 273 equipamentos do Engeman® CMMS
     localStorage.setItem(STORAGE_KEYS.FLEET, JSON.stringify(INITIAL_FLEET));
     return INITIAL_FLEET;
   },
@@ -181,32 +181,28 @@ export const Storage = {
             type: 'Padrão Visual Locar'
           }
         ],
-        solutionNotes: 'PCM Betim: Peças requisitadas ao fornecedor SANY. Previsão de liberação no CMMS: 06/10/2026.'
+        solutionNotes: 'PCM Betim: Peças requisitadas ao fornecedor SANY. Previsão de liberação no Engeman®: 06/10/2026.'
       },
       {
         id: 'SS-PCM-BETIM-2026-002',
-        equipmentId: '60/15/148',
-        equipmentTag: '60/15/148',
-        equipmentName: 'JLG 450 AJ (Boom articulado até 15m)',
-        type: 'pta',
-        branch: '2-Betim / MG',
-        openedDate: '16/07/2026 14:15',
-        openedBy: 'Marcos Vinicius Silva',
-        inspectorPhone: '(31) 99123-4567',
-        status: 'em_execucao',
-        severity: 'alta',
-        pcmEmailSent: true,
-        pcmEmailDate: '16/07/2026 14:18',
-        pcmRecipient: 'pcm.betim@locar.com.br',
+        equipmentId: '40/100/40',
+        equipmentTag: '40/100/40',
+        equipmentName: 'GUINDASTE 100 TON (Liebherr LTM 1090)',
+        type: 'guindaste',
+        severity: 'urgente',
+        status: 'em_analise',
+        openedDate: '15/09/2026 14:10',
+        openedBy: 'Carlos Eduardo Mendes',
+        inspectorPhone: '(31) 98765-4321',
         nonConformities: [
           {
-            item: 'Cilindros hidráulicos de elevação e extensão',
-            norm: 'NR-12 e NBR 16776',
-            note: 'Vazamento na vedação do cilindro secundário da lança articulada.',
-            type: 'Mecânica / Hidráulica'
+            item: 'Sistema Hidráulico e Cilindros de Elevação',
+            norm: 'NR-12 Anexo XII item 3.4',
+            note: 'Vazamento constatado na conexão do cilindro primário da lança telescópica.',
+            type: 'Falha Crítica'
           }
         ],
-        solutionNotes: 'PCM Betim: Manutenção em andamento na oficina de Betim. Previsão CMMS de liberação: 16/10/2026.'
+        solutionNotes: 'PCM Betim: Manutenção em andamento na oficina de Betim. Previsão de liberação no Engeman®: 16/10/2026.'
       }
     ];
 

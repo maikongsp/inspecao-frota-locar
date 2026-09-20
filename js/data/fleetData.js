@@ -1,6 +1,6 @@
 /**
  * Base Oficial de Frotas da Locar Guindastes - Filial 2-Betim / MG
- * Extraído diretamente do CMMS Oficial da Empresa
+ * Extraído diretamente do Engeman® - Software de Manutenção - CMMS Oficial da Locar
  * Total de Equipamentos Reais Cadastrados: 273
  */
 
