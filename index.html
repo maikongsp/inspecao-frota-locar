@@ -125,6 +125,17 @@
           <button class="filter-btn filter-status-btn" data-status="bloqueado">Bloqueados <span class="filter-badge" style="color:#EF4444;" id="badge-count-bloqueados">0</span></button>
         </div>
 
+        <!-- GRUPO 3: FILTRO POR CLASSIFICAÇÃO DE CLIENTE / RIGOR TÉCNICO -->
+        <div class="filters-group" id="filters-client-tiers-group">
+          <span style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Classificação de Clientes:</span>
+          <button class="filter-btn filter-tier-btn active" data-tier="todos">Todos os Clientes</button>
+          <button class="filter-btn filter-tier-btn" data-tier="AA">💎 Clientes AA <span class="filter-badge" id="badge-count-tier-aa" style="color:#F59E0B;">0</span></button>
+          <button class="filter-btn filter-tier-btn" data-tier="A">⭐ Clientes A <span class="filter-badge" id="badge-count-tier-a" style="color:#38BDF8;">0</span></button>
+          <button class="filter-btn filter-tier-btn" data-tier="B">🏛️ Clientes B <span class="filter-badge" id="badge-count-tier-b" style="color:#C084FC;">0</span></button>
+          <button class="filter-btn filter-tier-btn" data-tier="C">📦 Clientes C <span class="filter-badge" id="badge-count-tier-c" style="color:#34D399;">0</span></button>
+          <button class="filter-btn filter-tier-btn" data-tier="sem_cliente">🆓 Disponíveis (Pátio)</button>
+        </div>
+
         <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
           <div class="search-box">
             <span class="search-icon">🔍</span>
@@ -409,6 +420,21 @@
             </div>
           </div>
 
+          <!-- PADRÃO DE LIBERAÇÃO TÉCNICA / CLASSIFICAÇÃO DO CLIENTE -->
+          <div style="margin-bottom:1rem;">
+            <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">
+              Padrão de Liberação Técnica / Classificação do Cliente:
+            </label>
+            <select id="select-insp-client-tier" class="search-input" style="border-radius:var(--radius-md); font-weight:700;">
+              <option value="AA">💎 Cliente AA - Grandes Players (Vale, Usiminas, Anglo, CSN... Rigor Máximo)</option>
+              <option value="A">⭐ Cliente A - Terceiros dos Grandes Players (Alto Rigor Técnico)</option>
+              <option value="B">🏛️ Cliente B - Obras Públicas & Infraestrutura (Rigor Moderado)</option>
+              <option value="C">📦 Cliente C - Locação de Frotas Funcionais (Operação Básica)</option>
+              <option value="geral">⚙️ Padrão Corporativo Geral Locar Guindastes</option>
+            </select>
+            <div id="insp-tier-hint" style="font-size:0.72rem; color:var(--locar-yellow); margin-top:0.3rem;"></div>
+          </div>
+
           <div style="margin-bottom:1rem;">
             <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">Turno da Vistoria:</label>
             <select id="select-insp-shift" class="search-input" style="border-radius:var(--radius-md);">
@@ -613,7 +639,7 @@
             <button type="button" class="btn btn-secondary btn-quick-role" data-role="commercial" style="justify-content:flex-start; text-align:left; padding:0.6rem 0.75rem;">
               <span style="font-size:1.2rem; margin-right:0.4rem;">💼</span>
               <div>
-                <strong style="display:block; font-size:0.82rem; color:#FFFFFF;">Consultor Comercial</strong>
+                <strong style="display:block; font-size:0.82rem; color:#FFFFFF;">Comercial</strong>
                 <span style="font-size:0.68rem; color:var(--text-muted);">Reservas & Contratos</span>
               </div>
             </button>
@@ -627,7 +653,7 @@
             <button type="button" class="btn btn-secondary btn-quick-role" data-role="manager" style="justify-content:flex-start; text-align:left; padding:0.6rem 0.75rem;">
               <span style="font-size:1.2rem; margin-right:0.4rem;">📊</span>
               <div>
-                <strong style="display:block; font-size:0.82rem; color:#FFFFFF;">Gerente de Frota</strong>
+                <strong style="display:block; font-size:0.82rem; color:#FFFFFF;">Gestão de frota</strong>
                 <span style="font-size:0.68rem; color:var(--text-muted);">Cadastros & Exportação</span>
               </div>
             </button>
@@ -725,9 +751,36 @@
             <div style="font-size:0.82rem; color:var(--text-secondary);" id="reserve-equipment-desc">---</div>
           </div>
 
+          <!-- SELETOR DE CLASSIFICAÇÃO CORPORATIVA DO CLIENTE -->
           <div style="margin-bottom:0.85rem;">
-            <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">Cliente Contratante: *</label>
-            <input type="text" id="reserve-client-name" class="search-input" placeholder="Ex: Vale S.A., Gerdau, Petrobras, Anglo American..." required style="border-radius:var(--radius-md);" />
+            <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">
+              Classificação & Perfil do Cliente Contratante: *
+            </label>
+            <select id="reserve-client-tier" class="search-input" required style="border-radius:var(--radius-md); font-weight:700; border-color:var(--locar-yellow);">
+              <option value="AA" selected>💎 Clientes AA (Grandes Players: Vale, Usiminas, Anglo, Arcelor, CSN...)</option>
+              <option value="A">⭐ Clientes A (Terceiros & Contratadas dos Grandes Players)</option>
+              <option value="B">🏛️ Clientes B (Obras Públicas & Infraestrutura - Rigor Moderado)</option>
+              <option value="C">📦 Clientes C (Somente Locação de Frotas Funcionais)</option>
+            </select>
+          </div>
+
+          <!-- CARD DINÂMICO DE RIGOR TÉCNICO E EXIGÊNCIAS DO TIER SELECIONADO -->
+          <div id="reserve-tier-info-box" style="background:rgba(245, 158, 11, 0.08); border:1px solid rgba(245, 158, 11, 0.35); border-radius:var(--radius-md); padding:0.75rem; margin-bottom:0.85rem;">
+            <!-- Renderizado dinamicamente pelo app.js -->
+          </div>
+
+          <!-- CAMPO NOME DO CLIENTE COM SUGESTÕES RÁPIDAS EM 1-CLIQUE -->
+          <div style="margin-bottom:0.85rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem;">
+              <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); margin:0;">Cliente Contratante: *</label>
+              <span style="font-size:0.7rem; color:var(--text-muted);">Sugestões rápidas abaixo:</span>
+            </div>
+            <!-- CHIPS DE SELEÇÃO RÁPIDA DE GRANDES PLAYERS / CLIENTES -->
+            <div id="reserve-quick-clients-chips" style="display:flex; flex-wrap:wrap; gap:0.35rem; margin-bottom:0.45rem;">
+              <!-- Chips inseridos dinamicamente de acordo com o tier selecionado -->
+            </div>
+            <input type="text" id="reserve-client-name" list="datalist-reserve-clients" class="search-input" placeholder="Ex: Vale S.A., Usiminas, Anglo American..." required style="border-radius:var(--radius-md);" />
+            <datalist id="datalist-reserve-clients"></datalist>
           </div>
 
           <div style="margin-bottom:0.85rem;">

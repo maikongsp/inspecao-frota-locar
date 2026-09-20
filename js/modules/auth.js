@@ -5,13 +5,20 @@
  * Papéis Suportados:
  * - 'inspector': Inspetor Técnico de Campo (Realiza vistorias, checklists e fotos)
  * - 'pcm': Planejamento e Controle de Manutenção (Gerencia S.S., ordens e alertas)
- * - 'manager': Gestor de Frota & Engenharia (Cadastra equipamentos, exporta dados, audita)
+ * - 'manager': Gestão de Frota (Cadastra equipamentos, exporta dados, audita)
+ * - 'commercial': Comercial (Gestão de reservas e locações)
  * - 'admin': Administrador Geral (Acesso irrestrito a todos os módulos)
  */
+
+import { generateAuditHash } from '../utils.js';
 
 const AUTH_STORAGE_KEY = 'locar_auth_session_v1';
 const USERS_STORAGE_KEY = 'locar_corporate_users_v1';
 const AUDIT_STORAGE_KEY = 'locar_audit_log_v1';
+const LOCKOUT_STORAGE_KEY = 'locar_auth_lockout_v1';
+
+// Hash SHA-256 oficial do PIN padrão '1234'
+const DEFAULT_PIN_HASH = '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4';
 
 // Usuários corporativos padrão para operação em campo (Betim/MG)
 const DEFAULT_USERS = [
@@ -23,7 +30,7 @@ const DEFAULT_USERS = [
     role: 'inspector',
     roleName: 'Inspetor Técnico de Campo',
     phone: '(31) 98844-1234',
-    pin: '1234'
+    pinHash: DEFAULT_PIN_HASH
   },
   {
     id: 'usr_pcm_01',
@@ -33,7 +40,7 @@ const DEFAULT_USERS = [
     role: 'pcm',
     roleName: 'Gestor PCM / Manutenção',
     phone: '(31) 98765-4321',
-    pin: '1234'
+    pinHash: DEFAULT_PIN_HASH
   },
   {
     id: 'usr_mgr_01',
@@ -41,9 +48,9 @@ const DEFAULT_USERS = [
     registration: 'LOC-3001',
     name: 'Mariana Duarte',
     role: 'manager',
-    roleName: 'Gerente de Frota & Operações',
+    roleName: 'Gestão de frota',
     phone: '(31) 99123-9876',
-    pin: '1234'
+    pinHash: DEFAULT_PIN_HASH
   },
   {
     id: 'usr_com_01',
@@ -51,9 +58,9 @@ const DEFAULT_USERS = [
     registration: 'LOC-4200',
     name: 'Juliana Vasconcelos',
     role: 'commercial',
-    roleName: 'Consultor Comercial / Locações',
+    roleName: 'Comercial',
     phone: '(31) 98321-7788',
-    pin: '1234'
+    pinHash: DEFAULT_PIN_HASH
   },
   {
     id: 'usr_adm_01',
@@ -63,7 +70,7 @@ const DEFAULT_USERS = [
     role: 'admin',
     roleName: 'Administrador Geral QSMS',
     phone: '(31) 99999-0000',
-    pin: '1234'
+    pinHash: DEFAULT_PIN_HASH
   }
 ];
 
@@ -72,12 +79,33 @@ export class AuthManager {
     // O sistema abre sempre sem indicação de perfil (Modo Consulta Livre).
     // O login de perfil é obrigatório apenas ao executar ações operacionais.
     this.currentUser = null;
+    this.failedAttempts = new Map();
   }
 
   getRegisteredUsers() {
     try {
       const stored = localStorage.getItem(USERS_STORAGE_KEY);
-      if (stored) return JSON.parse(stored);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        let updated = false;
+        // Migração automática de PIN em texto plano legado para hash criptográfico SHA-256
+        parsed.forEach(u => {
+          if (!u.pinHash && u.pin) {
+            if (u.pin === '1234') {
+              u.pinHash = DEFAULT_PIN_HASH;
+            }
+            delete u.pin;
+            updated = true;
+          } else if (u.pin && u.pinHash) {
+            delete u.pin;
+            updated = true;
+          }
+        });
+        if (updated) {
+          localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(parsed));
+        }
+        return parsed;
+      }
     } catch (e) {
       console.warn('Erro ao carregar usuários cadastrados:', e);
     }
@@ -91,18 +119,69 @@ export class AuthManager {
   }
 
   saveSession(user) {
-    this.currentUser = user;
+    // Sanitiza objeto removendo credenciais antes de persistir
+    const sanitized = { ...user };
+    delete sanitized.pin;
+    delete sanitized.pinHash;
+
+    this.currentUser = sanitized;
     try {
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
-      this.logAudit('LOGIN_SESSION', `Sessão ativa para ${user.name} (${user.role})`);
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(sanitized));
+      this.logAudit('LOGIN_SESSION', `Sessão ativa para ${sanitized.name} (${sanitized.role})`);
     } catch (e) {
       console.error('Erro ao salvar sessão local:', e);
     }
   }
 
+  /**
+   * Verifica proteção contra ataques de força bruta (Lockout temporário)
+   */
+  checkLockout(cleanId) {
+    try {
+      const now = Date.now();
+      const attempts = this.failedAttempts.get(cleanId);
+      if (attempts && attempts.count >= 5) {
+        const remainingSeconds = Math.ceil((attempts.lockedUntil - now) / 1000);
+        if (remainingSeconds > 0) {
+          return {
+            locked: true,
+            message: `Muitas tentativas incorretas. Por segurança operacional, aguarde ${remainingSeconds}s antes de tentar novamente.`
+          };
+        } else {
+          // Bloqueio expirou
+          this.failedAttempts.delete(cleanId);
+        }
+      }
+    } catch (e) {
+      console.warn('Erro ao verificar lockout:', e);
+    }
+    return { locked: false };
+  }
+
+  recordFailedAttempt(cleanId) {
+    const now = Date.now();
+    const current = this.failedAttempts.get(cleanId) || { count: 0, lockedUntil: 0 };
+    current.count += 1;
+    if (current.count >= 5) {
+      current.lockedUntil = now + 60000; // 60 segundos de bloqueio temporário
+    }
+    this.failedAttempts.set(cleanId, current);
+  }
+
+  clearFailedAttempts(cleanId) {
+    this.failedAttempts.delete(cleanId);
+  }
+
   async login(identifier, pinOrPassword) {
     const cleanId = String(identifier).trim().toLowerCase();
     const cleanSecret = String(pinOrPassword).trim();
+
+    // 0. Verifica proteção contra força bruta
+    const lockout = this.checkLockout(cleanId);
+    if (lockout.locked) {
+      this.logAudit('LOGIN_LOCKED', `Tentativa bloqueada por força bruta para ${cleanId}`);
+      return { success: false, error: lockout.message };
+    }
 
     // 1. Tenta autenticação corporativa online via Appwrite Cloud se for e-mail e senha de 8+ caracteres
     if (typeof navigator !== 'undefined' && navigator.onLine && cleanId.includes('@') && cleanSecret.length >= 8) {
@@ -120,6 +199,7 @@ export class AuthManager {
             phone: '',
             authSource: 'appwrite_cloud'
           };
+          this.clearFailedAttempts(cleanId);
           this.saveSession(user);
           this.logAudit('LOGIN_APPWRITE', `Autenticação na nuvem Appwrite para ${cleanId}`);
           return { success: true, user, authSource: 'appwrite_cloud' };
@@ -129,20 +209,28 @@ export class AuthManager {
       }
     }
 
-    // 2. Base corporativa homologada para operação em campo (offline-first)
+    // 2. Base corporativa homologada para operação em campo (offline-first com Hash SHA-256)
+    const inputHash = await generateAuditHash(cleanSecret);
     const users = this.getRegisteredUsers();
-    const user = users.find(u => 
-      (u.email.toLowerCase() === cleanId || u.registration.toLowerCase() === cleanId) &&
-      u.pin === cleanSecret
-    );
+    const user = users.find(u => {
+      const matchId = (u.email.toLowerCase() === cleanId || u.registration.toLowerCase() === cleanId);
+      if (!matchId) return false;
+      // Valida com hash SHA-256 ou legado em migração
+      return u.pinHash === inputHash || u.pin === cleanSecret;
+    });
 
     if (user) {
+      this.clearFailedAttempts(cleanId);
       const sessionUser = { ...user, authSource: 'local_pin' };
+      delete sessionUser.pin;
+      delete sessionUser.pinHash;
       this.saveSession(sessionUser);
       this.logAudit('LOGIN_LOCAL', `Autenticação homologada para ${user.name}`);
       return { success: true, user: sessionUser, authSource: 'local_pin' };
     }
 
+    this.recordFailedAttempt(cleanId);
+    this.logAudit('LOGIN_FAILED', `Credencial incorreta informada para ${cleanId}`);
     return { 
       success: false, 
       error: 'Matrícula/E-mail ou PIN incorreto. Verifique suas credenciais corporativas.' 
@@ -153,8 +241,11 @@ export class AuthManager {
     const users = this.getRegisteredUsers();
     const user = users.find(u => u.role === role);
     if (user) {
-      this.saveSession(user);
-      return user;
+      const sessionUser = { ...user, authSource: 'quick_switch' };
+      delete sessionUser.pin;
+      delete sessionUser.pinHash;
+      this.saveSession(sessionUser);
+      return sessionUser;
     }
     return null;
   }

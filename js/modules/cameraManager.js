@@ -41,10 +41,24 @@ export const CameraManager = {
    */
   captureFromVideo(videoElement, equipmentTag = 'LOCAR', itemLabel = 'Inspeção') {
     const canvas = document.createElement('canvas');
-    const w = videoElement.videoWidth || 800;
-    const h = videoElement.videoHeight || 600;
-    canvas.width = 800;
-    canvas.height = Math.round((800 * h) / w);
+    const vw = videoElement.videoWidth || 960;
+    const vh = videoElement.videoHeight || 720;
+    const maxDim = 1280;
+    let w = vw;
+    let h = vh;
+
+    if (w > maxDim || h > maxDim) {
+      if (w > h) {
+        h = Math.round((h * maxDim) / w);
+        w = maxDim;
+      } else {
+        w = Math.round((w * maxDim) / h);
+        h = maxDim;
+      }
+    }
+
+    canvas.width = w;
+    canvas.height = h;
 
     const ctx = canvas.getContext('2d');
     ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
@@ -66,52 +80,73 @@ export const CameraManager = {
   },
 
   /**
-   * Processa arquivo de foto enviado via input file e comprime
+   * Processa arquivo de foto enviado via input file e comprime com proteção de memória e EXIF
    */
-  processUploadedFile(file, equipmentTag = 'LOCAR', itemLabel = 'Inspeção') {
-    return new Promise((resolve, reject) => {
-      if (!file || !file.type.startsWith('image/')) {
-        return reject(new Error('Arquivo não é uma imagem válida.'));
+  async processUploadedFile(file, equipmentTag = 'LOCAR', itemLabel = 'Inspeção') {
+    if (!file || !file.type.startsWith('image/')) {
+      throw new Error('Arquivo selecionado não é uma imagem válida.');
+    }
+
+    // Protege contra estouro de memória no navegador móvel ao subir fotos ultra pesadas
+    if (file.size > 25 * 1024 * 1024) {
+      throw new Error('O arquivo excede o limite operacional de 25MB.');
+    }
+
+    const maxDim = 1200;
+    let sourceWidth, sourceHeight, drawSource;
+    let cleanup = null;
+
+    try {
+      // 1. Tenta createImageBitmap moderno que preserva a orientação EXIF correta em smartphones
+      if (typeof createImageBitmap === 'function') {
+        const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+        sourceWidth = bitmap.width;
+        sourceHeight = bitmap.height;
+        drawSource = bitmap;
+        cleanup = () => bitmap.close && bitmap.close();
+      } else {
+        // Fallback clássico via Image e Object URL
+        const url = URL.createObjectURL(file);
+        cleanup = () => URL.revokeObjectURL(url);
+        const img = await new Promise((resolve, reject) => {
+          const image = new Image();
+          image.onload = () => resolve(image);
+          image.onerror = () => reject(new Error('Erro ao carregar a imagem do arquivo.'));
+          image.src = url;
+        });
+        sourceWidth = img.width;
+        sourceHeight = img.height;
+        drawSource = img;
       }
 
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const maxDim = 900;
-          let width = img.width;
-          let height = img.height;
+      let width = sourceWidth;
+      let height = sourceHeight;
 
-          if (width > height) {
-            if (width > maxDim) {
-              height = Math.round((height * maxDim) / width);
-              width = maxDim;
-            }
-          } else {
-            if (height > maxDim) {
-              width = Math.round((width * maxDim) / height);
-              height = maxDim;
-            }
-          }
+      if (width > height) {
+        if (width > maxDim) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        }
+      } else {
+        if (height > maxDim) {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
 
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, width, height);
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(drawSource, 0, 0, width, height);
 
-          // Marca d'água técnica
-          this.drawTechnicalWatermark(ctx, width, height, equipmentTag, itemLabel);
+      // Marca d'água técnica de perícia industrial
+      this.drawTechnicalWatermark(ctx, width, height, equipmentTag, itemLabel);
 
-          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.82);
-          resolve(compressedBase64);
-        };
-        img.onerror = () => reject(new Error('Erro ao carregar a imagem.'));
-        img.src = e.target.result;
-      };
-      reader.onerror = () => reject(new Error('Erro ao ler o arquivo.'));
-      reader.readAsDataURL(file);
-    });
+      return canvas.toDataURL('image/jpeg', 0.82);
+    } finally {
+      if (cleanup) cleanup();
+    }
   },
 
   /**

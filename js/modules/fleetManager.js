@@ -5,6 +5,7 @@
 
 import { Storage } from '../storage.js';
 import { sanitizeCSV } from '../utils.js';
+import { CLIENT_TIERS, getClientTier } from '../data/clientTiers.js';
 
 export const FleetManager = {
   currentLimit: 24,
@@ -201,7 +202,7 @@ export const FleetManager = {
     `;
   },
 
-  renderFleetGrid(containerElement, filterType = 'todos', filterStatus = 'todos', searchTerm = '') {
+  renderFleetGrid(containerElement, filterType = 'todos', filterStatus = 'todos', searchTerm = '', filterTier = 'todos') {
     if (!containerElement) return;
 
     let fleet = Storage.getFleet();
@@ -223,6 +224,15 @@ export const FleetManager = {
       fleet = fleet.filter(e => e.status === filterStatus);
     }
 
+    // Filtro por Classificação de Clientes / Rigor Técnico
+    if (filterTier && filterTier !== 'todos') {
+      if (filterTier === 'sem_cliente') {
+        fleet = fleet.filter(e => (!e.clientTier && !e.reservation?.clientTier) && e.status === 'disponivel');
+      } else {
+        fleet = fleet.filter(e => (e.clientTier === filterTier || e.reservation?.clientTier === filterTier));
+      }
+    }
+
     // Busca textual por tag, modelo ou marca
     if (searchTerm && searchTerm.trim() !== '') {
       const term = searchTerm.toLowerCase().trim();
@@ -230,6 +240,8 @@ export const FleetManager = {
         e.tag.toLowerCase().includes(term) ||
         e.model.toLowerCase().includes(term) ||
         e.brand.toLowerCase().includes(term) ||
+        (e.client && e.client.toLowerCase().includes(term)) ||
+        (e.reservation?.clientName && e.reservation.clientName.toLowerCase().includes(term)) ||
         (e.serialNumber && e.serialNumber.toLowerCase().includes(term))
       );
     }
@@ -291,6 +303,14 @@ export const FleetManager = {
         division: eq.type === 'pta' ? 'Divisão PTA' : 'Divisão Guindastes' 
       };
 
+      const clientTier = eq.clientTier || eq.reservation?.clientTier;
+      const tierMeta = getClientTier(clientTier);
+      const tierBadge = tierMeta ? `
+        <span class="client-tier-badge" style="background:${tierMeta.bgColor}; color:${tierMeta.color}; border:1px solid ${tierMeta.borderColor}; font-size:0.65rem; font-weight:800; padding:0.15rem 0.45rem; border-radius:4px; display:inline-flex; align-items:center; gap:0.25rem;" title="${tierMeta.name} - ${tierMeta.rigorLevel}">
+          ${tierMeta.badgeLabel}
+        </span>
+      ` : '';
+
       return `
         <div class="fleet-equipment-card ${statusMeta.cardClass}" data-id="${eq.id}">
           <div class="fleet-card-header">
@@ -300,6 +320,7 @@ export const FleetManager = {
               <span style="font-size:0.65rem; font-weight:700; color:var(--text-muted); background:rgba(255,255,255,0.06); padding:0.15rem 0.45rem; border-radius:4px; border:1px solid rgba(255,255,255,0.08); text-transform:uppercase;">
                 ${eq.type === 'pta' ? 'Divisão PTA' : 'Divisão Guindastes'}
               </span>
+              ${tierBadge}
             </div>
             ${statusMeta.badge}
           </div>
@@ -352,10 +373,12 @@ export const FleetManager = {
           <div class="fleet-card-footer" style="display:flex; flex-direction:column; gap:0.5rem;">
             ${eq.status === 'reservada' ? `
               <div style="background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.35); border-radius:var(--radius-sm); padding:0.5rem; font-size:0.75rem; color:#FDE68A;">
-                <div style="font-weight:700; color:#F59E0B; margin-bottom:2px;">
-                  📑 Reservado p/ ${eq.reservation?.clientName || 'Cliente Corporativo'}
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px; flex-wrap:wrap; gap:0.25rem;">
+                  <span style="font-weight:700; color:#F59E0B;">📑 Reservado p/ ${eq.reservation?.clientName || 'Cliente Corporativo'}</span>
+                  ${tierBadge}
                 </div>
                 <div style="font-size:0.7rem; color:var(--text-muted);">
+                  ${tierMeta ? `<span style="color:${tierMeta.color}; font-weight:700;">[${tierMeta.rigorLevel}]</span> • ` : ''}
                   Período: ${eq.reservation?.startDate || '--'} até ${eq.reservation?.endDate || '--'} (${eq.reservation?.estimatedDays || 0} dias estimados)
                 </div>
               </div>
@@ -365,6 +388,25 @@ export const FleetManager = {
                 </button>
                 <button type="button" class="btn btn-sm btn-secondary btn-cancel-reservation" data-id="${eq.id}" title="Cancelar Reserva Comercial">
                   ✕ Cancelar
+                </button>
+              </div>
+            ` : eq.status === 'locada' ? `
+              <div style="background:rgba(56,189,248,0.1); border:1px solid rgba(56,189,248,0.35); border-radius:var(--radius-sm); padding:0.5rem; font-size:0.75rem; color:#BAE6FD;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px; flex-wrap:wrap; gap:0.25rem;">
+                  <span style="font-weight:700; color:#38BDF8;">🏗️ Em Operação: ${eq.client || 'Cliente Locar'}</span>
+                  ${tierBadge}
+                </div>
+                <div style="font-size:0.7rem; color:var(--text-muted);">
+                  ${tierMeta ? `<span style="color:${tierMeta.color}; font-weight:700;">[${tierMeta.rigorLevel}]</span> • ` : ''}
+                  Local: ${eq.siteLocation || eq.branch || 'Betim / MG'}
+                </div>
+              </div>
+              <div style="display:flex; gap:0.4rem; width:100%;">
+                <button type="button" class="btn btn-primary btn-start-inspection" data-id="${eq.id}" data-type="${eq.type}" style="flex:1;">
+                  📋 Vistoria Periódica
+                </button>
+                <button type="button" class="btn btn-secondary btn-view-history" data-id="${eq.id}">
+                  📜 Histórico
                 </button>
               </div>
             ` : eq.status === 'disponivel' ? `
@@ -423,7 +465,7 @@ export const FleetManager = {
    * @param {string} [filterStatus='todos']
    * @param {string} [searchTerm='']
    */
-  exportFleetToCSV(filterType = 'todos', filterStatus = 'todos', searchTerm = '') {
+  exportFleetToCSV(filterType = 'todos', filterStatus = 'todos', searchTerm = '', filterTier = 'todos') {
     let fleet = Storage.getFleet();
 
     // Filtro por Divisão de Negócio / Categoria
@@ -442,6 +484,15 @@ export const FleetManager = {
       fleet = fleet.filter(e => e.status === filterStatus);
     }
 
+    // Filtro por Classificação de Clientes
+    if (filterTier && filterTier !== 'todos') {
+      if (filterTier === 'sem_cliente') {
+        fleet = fleet.filter(e => (!e.clientTier && !e.reservation?.clientTier) && e.status === 'disponivel');
+      } else {
+        fleet = fleet.filter(e => (e.clientTier === filterTier || e.reservation?.clientTier === filterTier));
+      }
+    }
+
     // Busca textual
     if (searchTerm && searchTerm.trim() !== '') {
       const term = searchTerm.toLowerCase().trim();
@@ -449,6 +500,8 @@ export const FleetManager = {
         e.tag.toLowerCase().includes(term) ||
         e.model.toLowerCase().includes(term) ||
         e.brand.toLowerCase().includes(term) ||
+        (e.client && e.client.toLowerCase().includes(term)) ||
+        (e.reservation?.clientName && e.reservation.clientName.toLowerCase().includes(term)) ||
         (e.serialNumber && e.serialNumber.toLowerCase().includes(term))
       );
     }
@@ -465,25 +518,36 @@ export const FleetManager = {
       'Horímetro (h)',
       'Filial / Base',
       'Status Operacional',
+      'Classificação Cliente',
+      'Rigor Técnico',
+      'Cliente Contratante',
       'Última Inspeção',
       'Observações Técnicas'
     ];
 
-    const rows = fleet.map(eq => [
-      eq.tag,
-      eq.type === 'pta' ? 'Divisão PTA' : 'Divisão Guindastes e Demais Ativos',
-      eq.typeName || eq.type,
-      eq.brand,
-      eq.model,
-      eq.year,
-      eq.serialNumber || 'N/A',
-      eq.capacity || 'N/A',
-      eq.hourmeter || 0,
-      eq.branch || 'Betim - MG',
-      eq.status.toUpperCase(),
-      eq.lastInspectionDate || 'Nunca',
-      (eq.notes || '').replace(/[\n\r;]/g, ' ')
-    ]);
+    const rows = fleet.map(eq => {
+      const tierId = eq.clientTier || eq.reservation?.clientTier;
+      const tierMeta = getClientTier(tierId);
+      const clientName = eq.client || eq.reservation?.clientName || (eq.status === 'disponivel' ? 'Disponível no Pátio' : 'Não Atribuído');
+      return [
+        eq.tag,
+        eq.type === 'pta' ? 'Divisão PTA' : 'Divisão Guindastes e Demais Ativos',
+        eq.typeName || eq.type,
+        eq.brand,
+        eq.model,
+        eq.year,
+        eq.serialNumber || 'N/A',
+        eq.capacity || 'N/A',
+        eq.hourmeter || 0,
+        eq.branch || 'Betim - MG',
+        eq.status.toUpperCase(),
+        tierMeta ? tierMeta.shortLabel : 'Geral / Pátio',
+        tierMeta ? tierMeta.rigorLevel : 'Padrão Locar',
+        clientName,
+        eq.lastInspectionDate || 'Nunca',
+        (eq.notes || '').replace(/[\n\r;]/g, ' ')
+      ];
+    });
 
     const csvContent = '\uFEFF' + [
       headers.join(';'),

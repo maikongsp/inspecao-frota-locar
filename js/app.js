@@ -15,12 +15,14 @@ import { aiCopilot } from './modules/aiCopilot.js';
 import { appwriteClient } from './appwriteClient.js';
 import { escapeHTML, formatLocalDate, addDays } from './utils.js';
 import { authManager } from './modules/auth.js';
+import { CLIENT_TIERS, getClientTier, getAllClientTiers } from './data/clientTiers.js';
 
 // Estado global da interface
 const AppState = {
   currentTab: 'dashboard',
   fleetFilterType: 'todos',
   fleetFilterStatus: 'todos',
+  fleetFilterTier: 'todos',
   fleetSearchTerm: '',
   activeCameraTargetItemId: null,
   activeCameraItemLabel: '',
@@ -121,14 +123,14 @@ export function switchTab(tabId) {
   if (tabId === 'novo-equipamento') {
     if (!authManager.isAuthenticated()) {
       requireAuth(
-        'O cadastro de novos ativos exige autenticação com perfil de Gerente de Frota ou Administrador.',
+        'O cadastro de novos ativos exige autenticação com perfil de Gestão de frota ou Administrador.',
         () => switchTab('novo-equipamento'),
         () => authManager.canManageFleet()
       );
       return;
     }
     if (!authManager.canManageFleet()) {
-      showToast('Acesso Restrito: Apenas o Gestor de Frota ou Administrador podem cadastrar novos equipamentos.', 'warning');
+      showToast('Acesso Restrito: Apenas o perfil Gestão de frota ou Administrador podem cadastrar novos equipamentos.', 'warning');
       return;
     }
   }
@@ -191,6 +193,18 @@ function initFleetView() {
     });
   });
 
+  // Filtro por Classificação de Clientes / Rigor Técnico
+  const tierFilterBtns = document.querySelectorAll('.filter-tier-btn');
+  tierFilterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      tierFilterBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      AppState.fleetFilterTier = btn.getAttribute('data-tier');
+      FleetManager.currentLimit = 24;
+      renderFleet();
+    });
+  });
+
   const searchInput = document.getElementById('fleet-search-input');
   if (searchInput) {
     searchInput.addEventListener('input', (e) => {
@@ -206,7 +220,8 @@ function initFleetView() {
       const res = FleetManager.exportFleetToCSV(
         AppState.fleetFilterType,
         AppState.fleetFilterStatus,
-        AppState.fleetSearchTerm
+        AppState.fleetSearchTerm,
+        AppState.fleetFilterTier
       );
       showToast(`Relatório exportado com sucesso: ${res.count} ativos (${res.filename})!`, 'success');
     });
@@ -304,6 +319,7 @@ function initFleetView() {
       }
 
       const eqId = document.getElementById('reserve-equipment-id')?.value;
+      const clientTier = document.getElementById('reserve-client-tier')?.value || 'AA';
       const clientName = document.getElementById('reserve-client-name')?.value.trim();
       const contractRef = document.getElementById('reserve-contract-ref')?.value.trim();
       const startDate = document.getElementById('reserve-start-date')?.value;
@@ -335,6 +351,7 @@ function initFleetView() {
 
       try {
         Storage.reserveEquipment(eqId, {
+          clientTier,
           clientName,
           contractRef,
           startDate,
@@ -347,7 +364,7 @@ function initFleetView() {
 
         closeModal('modal-reserve-equipment');
         refreshDashboard();
-        showToast(`Equipamento reservado com sucesso para ${clientName} (${diffDays} dias estimados)!`, 'success');
+        showToast(`Equipamento reservado com sucesso para ${clientName} [Cliente ${clientTier}] (${diffDays} dias estimados)!`, 'success');
       } catch (err) {
         showToast(err.message, 'danger');
       }
@@ -355,6 +372,62 @@ function initFleetView() {
   }
 
   refreshDashboard();
+}
+
+function updateReserveTierUI(tierKey) {
+  const tier = getClientTier(tierKey) || CLIENT_TIERS.AA;
+  const infoBox = document.getElementById('reserve-tier-info-box');
+  const chipsContainer = document.getElementById('reserve-quick-clients-chips');
+  const datalist = document.getElementById('datalist-reserve-clients');
+  const clientInput = document.getElementById('reserve-client-name');
+
+  if (infoBox) {
+    infoBox.style.background = tier.bgColor;
+    infoBox.style.borderColor = tier.borderColor;
+    infoBox.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem; flex-wrap:wrap; gap:0.25rem;">
+        <span style="font-weight:800; color:${tier.color}; font-size:0.82rem;">
+          ${tier.badgeLabel}
+        </span>
+        <span style="font-size:0.68rem; color:${tier.color}; background:rgba(0,0,0,0.3); border:1px solid ${tier.borderColor}; padding:2px 6px; border-radius:4px; font-weight:700;">
+          ⚡ ${escapeHTML(tier.rigorLevel)}
+        </span>
+      </div>
+      <p style="font-size:0.73rem; color:var(--text-secondary); margin:0 0 0.4rem 0;">
+        ${escapeHTML(tier.description)}
+      </p>
+      <div style="font-size:0.7rem; color:${tier.color}; font-weight:700; margin-bottom:0.2rem;">
+        Exigências Técnicas Mandatórias:
+      </div>
+      <ul style="margin:0; padding-left:1.1rem; font-size:0.69rem; color:var(--text-muted); line-height:1.35;">
+        ${tier.technicalRequirements.slice(0, 4).map(req => `<li>${escapeHTML(req)}</li>`).join('')}
+      </ul>
+    `;
+  }
+
+  // Atualiza Chips rápidos
+  if (chipsContainer) {
+    chipsContainer.innerHTML = tier.quickClients.map(c => `
+      <button type="button" class="btn btn-sm btn-chip-client" data-client="${escapeHTML(c)}" style="background:rgba(255,255,255,0.06); border:1px solid ${tier.borderColor}; color:${tier.color}; font-size:0.7rem; padding:0.2rem 0.5rem; border-radius:12px; cursor:pointer; font-weight:600;">
+        + ${escapeHTML(c)}
+      </button>
+    `).join('');
+
+    chipsContainer.querySelectorAll('.btn-chip-client').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const selected = btn.getAttribute('data-client');
+        if (clientInput) {
+          clientInput.value = selected;
+          document.getElementById('reserve-contract-ref')?.focus();
+        }
+      });
+    });
+  }
+
+  // Atualiza Datalist
+  if (datalist) {
+    datalist.innerHTML = tier.quickClients.map(c => `<option value="${escapeHTML(c)}">`).join('');
+  }
 }
 
 function openReserveModal(equipmentId) {
@@ -377,6 +450,14 @@ function openReserveModal(equipmentId) {
   document.getElementById('reserve-equipment-id').value = eq.id;
   document.getElementById('reserve-equipment-tag').textContent = `${eq.tag} - ${eq.brand} ${eq.model}`;
   document.getElementById('reserve-equipment-desc').textContent = `${eq.typeName} | Horímetro: ${eq.hourmeter || 0}h | Chassi: ${eq.chassi || 'N/D'}`;
+
+  // Inicializa Seletor de Classificação de Clientes (Padrão: AA Grandes Players)
+  const tierSelect = document.getElementById('reserve-client-tier');
+  if (tierSelect) {
+    tierSelect.value = 'AA';
+    updateReserveTierUI('AA');
+    tierSelect.onchange = (e) => updateReserveTierUI(e.target.value);
+  }
 
   // Preenche datas padrão com garantia de integridade do fuso horário local
   const today = new Date();
@@ -515,7 +596,8 @@ function renderFleet() {
     fleetGrid,
     AppState.fleetFilterType,
     AppState.fleetFilterStatus,
-    AppState.fleetSearchTerm
+    AppState.fleetSearchTerm,
+    AppState.fleetFilterTier
   );
 }
 
@@ -564,6 +646,19 @@ function updateNavCounters() {
 
   const countBloqueados = document.getElementById('badge-count-bloqueados');
   if (countBloqueados) countBloqueados.textContent = fleet.filter(f => f.status === 'bloqueado').length;
+
+  // Atualiza contadores dos filtros de Classificação de Clientes
+  const countTierAA = document.getElementById('badge-count-tier-aa');
+  if (countTierAA) countTierAA.textContent = fleet.filter(f => f.clientTier === 'AA' || f.reservation?.clientTier === 'AA').length;
+
+  const countTierA = document.getElementById('badge-count-tier-a');
+  if (countTierA) countTierA.textContent = fleet.filter(f => f.clientTier === 'A' || f.reservation?.clientTier === 'A').length;
+
+  const countTierB = document.getElementById('badge-count-tier-b');
+  if (countTierB) countTierB.textContent = fleet.filter(f => f.clientTier === 'B' || f.reservation?.clientTier === 'B').length;
+
+  const countTierC = document.getElementById('badge-count-tier-c');
+  if (countTierC) countTierC.textContent = fleet.filter(f => f.clientTier === 'C' || f.reservation?.clientTier === 'C').length;
 }
 
 // --- ABA 2: SISTEMA DE INSPEÇÃO (WIZARD GUIADO) ---
@@ -592,6 +687,26 @@ function promptStartInspection(equipmentId) {
   document.getElementById('modal-start-eq-id').value = equipment.id;
   document.getElementById('input-insp-hourmeter').value = equipment.hourmeter || '';
 
+  // Configura Destinação / Padrão de Liberação Técnica do Cliente
+  const clientTierSelect = document.getElementById('select-insp-client-tier');
+  const tierHintEl = document.getElementById('insp-tier-hint');
+  const targetTier = equipment.clientTier || equipment.reservation?.clientTier || 'AA';
+
+  if (clientTierSelect) {
+    clientTierSelect.value = targetTier;
+    const updateTierHint = (key) => {
+      const meta = getClientTier(key);
+      if (tierHintEl) {
+        tierHintEl.textContent = meta 
+          ? `⚡ Exigência Técnica: ${meta.rigorLevel} • ${meta.profile}`
+          : '⚡ Padrão Corporativo Geral de Inspeção';
+        tierHintEl.style.color = meta ? meta.color : 'var(--locar-yellow)';
+      }
+    };
+    updateTierHint(clientTierSelect.value);
+    clientTierSelect.onchange = (e) => updateTierHint(e.target.value);
+  }
+
   // Verifica se há Solicitação de Serviço pendente no PCM para este equipamento
   const activeSS = Storage.getServiceRequests().find(s => 
     (s.equipmentId === equipment.id || s.equipmentTag === equipment.tag) && 
@@ -609,11 +724,16 @@ function promptStartInspection(equipmentId) {
         </div>
       `;
     } else if (equipment.status === 'reservada' && equipment.reservation) {
+      const tierMeta = getClientTier(equipment.reservation.clientTier || 'AA');
       ssNoticeEl.style.display = 'block';
       ssNoticeEl.innerHTML = `
-        <div style="background:rgba(245, 158, 11, 0.15); border:1px solid #F59E0B; border-radius:var(--radius-md); padding:0.75rem; margin-bottom:1rem; font-size:0.78rem; color:#FDE68A;">
-          <strong>📑 EQUIPAMENTO COM RESERVA COMERCIAL ATIVA:</strong><br/>
+        <div style="background:${tierMeta ? tierMeta.bgColor : 'rgba(245, 158, 11, 0.15)'}; border:1px solid ${tierMeta ? tierMeta.borderColor : '#F59E0B'}; border-radius:var(--radius-md); padding:0.75rem; margin-bottom:1rem; font-size:0.78rem; color:#FDE68A;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <strong>📑 EQUIPAMENTO COM RESERVA COMERCIAL ATIVA:</strong>
+            ${tierMeta ? `<span style="background:rgba(0,0,0,0.3); color:${tierMeta.color}; border:1px solid ${tierMeta.borderColor}; padding:1px 6px; border-radius:3px; font-weight:800; font-size:0.7rem;">${tierMeta.badgeLabel}</span>` : ''}
+          </div>
           Reservado para: <strong>${escapeHTML(equipment.reservation.clientName)}</strong> (Período: ${escapeHTML(equipment.reservation.startDate)} a ${escapeHTML(equipment.reservation.endDate)} - ${escapeHTML(String(equipment.reservation.estimatedDays))} dias).<br/>
+          <span style="color:${tierMeta ? tierMeta.color : '#FDE68A'}; font-weight:600;">Diretriz de Segurança: ${tierMeta ? escapeHTML(tierMeta.rigorLevel) : 'Rigor Máximo'}</span>.<br/>
           <em>Esta vistoria técnica validará a liberação preventiva para mobilização segura do cliente.</em>
         </div>
       `;
@@ -640,6 +760,7 @@ function initInspectionEvents() {
       const lastName = document.getElementById('input-insp-last-name').value.trim();
       const phone = document.getElementById('input-insp-phone').value.trim();
       const inspectorShift = document.getElementById('select-insp-shift').value;
+      const selectedClientTier = document.getElementById('select-insp-client-tier')?.value || 'AA';
       const hourmeter = Number(document.getElementById('input-insp-hourmeter').value);
 
       if (!firstName || !lastName) {
@@ -664,19 +785,23 @@ function initInspectionEvents() {
         return;
       }
 
+      const targetClientName = equipment.client || equipment.reservation?.clientName || (selectedClientTier === 'geral' ? 'Padrão Locar' : `Destinação ${selectedClientTier}`);
+
       InspectionEngine.startNewInspection(equipment, {
         firstName: firstName,
         lastName: lastName,
         phone: phone,
         registry: 'Inspetor Técnico Homologado',
         shift: inspectorShift,
-        hourmeter: hourmeter
+        hourmeter: hourmeter,
+        clientTier: selectedClientTier,
+        clientName: targetClientName
       });
 
       closeModal('modal-start-inspection');
       switchTab('inspecao');
       renderInspectionWizard();
-      showToast(`Inspeção iniciada para ${equipment.tag} por ${firstName} ${lastName} (Tel: ${phone}).`, 'warning');
+      showToast(`Inspeção iniciada para ${equipment.tag} [Destinação ${selectedClientTier}] por ${firstName} ${lastName}.`, 'warning');
     });
   }
 
@@ -1499,7 +1624,7 @@ function initNewEquipmentForm() {
       e.preventDefault();
       if (!authManager.isAuthenticated() || !authManager.canManageFleet()) {
         requireAuth(
-          'O cadastro de novos ativos exige autenticação com perfil de Gerente de Frota ou Administrador.',
+          'O cadastro de novos ativos exige autenticação com perfil de Gestão de frota ou Administrador.',
           null,
           () => authManager.canManageFleet()
         );
@@ -2050,7 +2175,7 @@ function updateAuthUI() {
   if (tabNovoEq) {
     const canManage = authManager.canManageFleet();
     tabNovoEq.style.opacity = canManage ? '1' : '0.65';
-    tabNovoEq.title = canManage ? '' : 'Acesso restrito: Requer perfil Gestor de Frota ou Administrador';
+    tabNovoEq.title = canManage ? '' : 'Acesso restrito: Requer perfil Gestão de frota ou Administrador';
   }
 
   updateCloudSyncIndicator();

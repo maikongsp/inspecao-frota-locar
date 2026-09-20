@@ -5,6 +5,7 @@
 
 import { Storage } from '../storage.js';
 import { escapeHTML } from '../utils.js';
+import { getClientTier } from '../data/clientTiers.js';
 
 export const PCMServiceRequests = {
   /**
@@ -53,7 +54,9 @@ DADOS DA SOLICITAÇÃO DE SERVIÇO: ${ss.id}
 • Data / Hora da Vistoria: ${ss.openedDate}
 • Inspetor Responsável: ${ss.openedBy}
 • Telefone de Contato do Inspetor: ${ss.inspectorPhone || 'Não informado'}
+• Classificação do Cliente: ${ss.clientTier ? `[${ss.clientTier}] ${ss.clientName || 'Cliente Corporativo'}` : 'Frota Geral'}
 • Gravidade do Bloqueio: ${ss.severity.toUpperCase()}
+${ss.clientTier === 'AA' ? '• ALERTA CRÍTICO: Frota com destinação a Grande Player (Classe AA) - Prioridade Emergencial de Oficina!' : ''}
 
 =======================================================
 NÃO CONFORMIDADES DETECTADAS (${ss.nonConformities?.length || 0} ITENS):
@@ -74,6 +77,7 @@ Locar Guindastes e Transportes Intermodais S/A
 `;
 
     // Versão HTML Rica para visualização e envio
+    const tierMeta = getClientTier(ss.clientTier);
     const htmlBody = `
       <div style="font-family:'Segoe UI', Arial, sans-serif; max-width:680px; margin:0 auto; background:#FFFFFF; border:1px solid #CBD5E1; border-radius:8px; overflow:hidden; color:#1E293B;">
         <div style="background:#474444; padding:18px 24px; border-bottom:4px solid #FFF212; display:flex; align-items:center; justify-content:space-between;">
@@ -91,6 +95,14 @@ Locar Guindastes e Transportes Intermodais S/A
             <strong style="color:#991B1B; font-size:14px; display:block;">EQUIPAMENTO BLOQUEADO NO PÁTIO DE MANUTENÇÃO</strong>
             <span style="font-size:12px; color:#7F1D1D;">Solicitação formal de intervenção corretiva gerada automaticamente após reprovação em checklist normativo.</span>
           </div>
+
+          ${tierMeta ? `
+            <div style="background:${tierMeta.bgColor}; border:1px solid ${tierMeta.borderColor}; padding:10px 14px; margin-bottom:16px; border-radius:6px; font-size:12px; color:#1E293B;">
+              <strong style="color:${tierMeta.color}; font-size:13px;">${tierMeta.badgeLabel}:</strong> 
+              Destinado a <strong>${escapeHTML(ss.clientName || 'Cliente Especial')}</strong>.
+              <span style="display:block; font-size:11px; color:#64748B; margin-top:2px;">Rigor Técnico: ${escapeHTML(tierMeta.rigorLevel)}</span>
+            </div>
+          ` : ''}
 
           <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:13px;">
             <tr style="background:#F8FAFC;">

@@ -5,6 +5,7 @@
 
 import { INITIAL_FLEET } from './data/fleetData.js';
 import { idbStorage } from './modules/indexedDBStorage.js';
+import { CLIENT_TIERS, getClientTier } from './data/clientTiers.js';
 
 const STORAGE_KEYS = {
   FLEET: 'locar_inspection_fleet_v2_betim',
@@ -54,20 +55,75 @@ export const Storage = {
   // --- GESTÃO DA FROTA REAL (ENGEMAN® CMMS BETIM) ---
   getFleet() {
     this.clearLegacyData();
+    let fleet = null;
     try {
       const data = localStorage.getItem(STORAGE_KEYS.FLEET);
       if (data) {
         const parsed = JSON.parse(data);
         if (Array.isArray(parsed) && parsed.length > 50) {
-          return parsed;
+          fleet = parsed;
         }
       }
     } catch (e) {
       console.warn('Erro ao ler frota do localStorage, recarregando dados do Engeman® CMMS Betim:', e);
     }
-    // Inicializa com a frota oficial de 273 equipamentos do Engeman® CMMS
-    localStorage.setItem(STORAGE_KEYS.FLEET, JSON.stringify(INITIAL_FLEET));
-    return INITIAL_FLEET;
+    
+    if (!fleet) {
+      // Inicializa com a frota oficial de 273 equipamentos do Engeman® CMMS
+      fleet = JSON.parse(JSON.stringify(INITIAL_FLEET));
+    }
+
+    // Enriquece frotas locadas/reservadas com metadados de classificação de clientes se ainda não possuírem
+    fleet = this.enrichFleetWithClientTiers(fleet);
+    localStorage.setItem(STORAGE_KEYS.FLEET, JSON.stringify(fleet));
+    return fleet;
+  },
+
+  enrichFleetWithClientTiers(fleet) {
+    if (!Array.isArray(fleet)) return fleet;
+
+    const samplePool = [
+      { tier: 'AA', client: 'Vale S.A.', site: 'Mina Pau Branco / Brucutu' },
+      { tier: 'AA', client: 'Usiminas', site: 'Usina Intendente Câmara - Ipatinga' },
+      { tier: 'AA', client: 'Anglo American', site: 'Minas-Rio - Conceição do Mato Dentro' },
+      { tier: 'AA', client: 'ArcelorMittal', site: 'Usina Monlevade' },
+      { tier: 'AA', client: 'CSN (Companhia Siderúrgica Nacional)', site: 'Mina Casa de Pedra - Congonhas' },
+      { tier: 'AA', client: 'Gerdau', site: 'Usina Ouro Branco' },
+      { tier: 'A', client: 'Manserv Industrial (Vale)', site: 'Parada Programada Vale Vargem Grande' },
+      { tier: 'A', client: 'Andrade Gutierrez (Anglo American)', site: 'Obras de Expansão Minas-Rio' },
+      { tier: 'A', client: 'Tenenge / Engevix (Usiminas)', site: 'Montagem Industrial Alto Forno 3' },
+      { tier: 'A', client: 'Camargo Corrêa Infra (CSN)', site: 'Estruturas Metálicas CSN Mineração' },
+      { tier: 'B', client: 'Prefeitura Municipal de Betim', site: 'Obras Viárias Avenida das Américas' },
+      { tier: 'B', client: 'DER-MG (Dep. Estradas de Rodagem)', site: 'Manutenção Viária MG-050 / BR-381' },
+      { tier: 'B', client: 'Copasa - Saneamento', site: 'Estação de Tratamento Betim' },
+      { tier: 'B', client: 'DNIT (Infraestrutura de Transportes)', site: 'Passarela de Pedestres BR-381 Betim' },
+      { tier: 'C', client: 'Galpão Logístico Betim Distribuição', site: 'Condomínio Logístico Via Expressa' },
+      { tier: 'C', client: 'Construtora Residencial & Predial', site: 'Edifício Residencial Jardins Betim' },
+      { tier: 'C', client: 'Instalações Elétricas & Iluminação', site: 'Parque Industrial Betim' }
+    ];
+
+    let poolIdx = 0;
+    fleet.forEach(eq => {
+      if (eq.status === 'locada' && !eq.clientTier) {
+        const item = samplePool[poolIdx % samplePool.length];
+        poolIdx++;
+        eq.clientTier = item.tier;
+        eq.client = eq.client || item.client;
+        eq.siteLocation = eq.siteLocation || item.site;
+        const tierMeta = getClientTier(item.tier);
+        eq.clientTierBadge = tierMeta?.badgeLabel || item.tier;
+        if (!eq.currentContract) {
+          eq.currentContract = `${eq.client} (Contrato Vigente)`;
+        }
+      } else if (eq.status === 'reservada') {
+        const tier = eq.reservation?.clientTier || eq.clientTier || 'AA';
+        eq.clientTier = tier;
+        const tierMeta = getClientTier(tier);
+        eq.clientTierBadge = tierMeta?.badgeLabel || tier;
+      }
+    });
+
+    return fleet;
   },
 
   saveFleet(fleet) {
@@ -117,8 +173,15 @@ export const Storage = {
       throw new Error(`Regra Comercial Locar: Apenas frotas com status 'DISPONÍVEL' podem ser reservadas. O equipamento ${eq.tag} está '${eq.status.toUpperCase()}'.`);
     }
 
+    const tierId = (reservationData.clientTier || 'AA').toUpperCase().trim();
+    const tierMeta = getClientTier(tierId) || CLIENT_TIERS.AA;
+
     const reservation = {
       id: `RES-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`,
+      clientTier: tierId,
+      clientTierName: tierMeta.name,
+      clientTierBadge: tierMeta.badgeLabel,
+      clientTierColor: tierMeta.color,
       clientName: reservationData.clientName || 'Cliente Corporativo',
       contractRef: reservationData.contractRef || 'Proposta Comercial',
       startDate: reservationData.startDate,
@@ -131,9 +194,12 @@ export const Storage = {
     };
 
     eq.status = 'reservada';
+    eq.clientTier = tierId;
+    eq.client = reservation.clientName;
+    eq.clientTierBadge = tierMeta.badgeLabel;
     eq.reservation = reservation;
     eq.reservationData = reservation;
-    eq.notes = `RESERVADO p/ ${reservation.clientName} (${reservation.startDate} até ${reservation.endDate})`;
+    eq.notes = `RESERVADO [${tierId}] p/ ${reservation.clientName} (${reservation.startDate} até ${reservation.endDate})`;
 
     this.saveFleet(fleet);
     return eq;
@@ -152,15 +218,19 @@ export const Storage = {
     }
 
     const client = eq.reservation?.clientName || eq.reservationData?.clientName || 'Cliente Locar';
+    const tierId = eq.reservation?.clientTier || eq.clientTier || 'AA';
+    const tierMeta = getClientTier(tierId) || CLIENT_TIERS.AA;
     const contract = eq.reservation?.contractRef || eq.reservationData?.contractRef || 'Contrato Ativo';
     const nowIso = new Date().toISOString();
 
     eq.status = 'locada';
     eq.client = client;
+    eq.clientTier = tierId;
+    eq.clientTierBadge = tierMeta.badgeLabel;
     eq.currentContract = `${client} (${contract})`;
     if (eq.reservation) eq.reservation.rentalStartedAt = nowIso;
     if (eq.reservationData) eq.reservationData.rentalStartedAt = nowIso;
-    eq.notes = `EM OPERAÇÃO / LOCADA para ${client}. Início: ${eq.reservation?.startDate || 'Hoje'}`;
+    eq.notes = `EM OPERAÇÃO / LOCADA [${tierId}] para ${client}. Início: ${eq.reservation?.startDate || 'Hoje'}`;
 
     this.saveFleet(fleet);
     return eq;
@@ -357,6 +427,10 @@ export const Storage = {
       });
     }
 
+    const clientTier = inspection.clientTier || inspection.equipmentDetails?.clientTier || inspection.equipmentDetails?.reservation?.clientTier || null;
+    const clientName = inspection.clientName || inspection.equipmentDetails?.client || inspection.equipmentDetails?.reservation?.clientName || null;
+    const isClientAA = clientTier === 'AA';
+
     const newRequest = {
       id: ssNumber,
       equipmentId: inspection.equipmentId,
@@ -369,12 +443,16 @@ export const Storage = {
       openedBy: inspection.inspectorFullName || `${inspection.inspectorFirstName} ${inspection.inspectorLastName}`,
       inspectorPhone: inspection.inspectorPhone || 'Não informado',
       status: 'aberta',
-      severity: ncList.some(nc => nc.type.includes('Visual') || nc.type.includes('Operação')) ? 'critica' : 'alta',
+      severity: isClientAA ? 'critica' : (ncList.some(nc => nc.type.includes('Visual') || nc.type.includes('Operação')) ? 'critica' : 'alta'),
+      clientTier,
+      clientName,
       pcmEmailSent: true,
       pcmEmailDate: new Date().toLocaleString('pt-BR'),
       pcmRecipient: pcmConfig.pcmEmail,
       nonConformities: ncList,
-      solutionNotes: 'Solicitação gerada e encaminhada ao PCM Betim. Equipamento retido no pátio até reparo e nova inspeção.'
+      solutionNotes: isClientAA 
+        ? `🚨 ATENÇÃO PCM BETIM: Frota destinada a Cliente Classe AA (${clientName || 'Grande Player'}). Prioridade emergencial na oficina e testes de liberação!`
+        : 'Solicitação gerada e encaminhada ao PCM Betim. Equipamento retido no pátio até reparo e nova inspeção.'
     };
 
     requests.unshift(newRequest);

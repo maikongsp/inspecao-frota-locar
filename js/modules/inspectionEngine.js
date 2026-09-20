@@ -44,6 +44,8 @@ export const InspectionEngine = {
       inspectorReg: inspectorData.registry || '',
       inspectorShift: inspectorData.shift || 'Turno Diurno',
       hourmeter: inspectorData.hourmeter || equipment.hourmeter || 0,
+      clientTier: inspectorData.clientTier || equipment.clientTier || equipment.reservation?.clientTier || null,
+      clientName: inspectorData.clientName || equipment.client || equipment.reservation?.clientName || null,
       currentStepIndex: 0,
       totalSteps: checklistConfig.sections.length + 1, // Seções + Resumo/Assinatura
       answers: {},

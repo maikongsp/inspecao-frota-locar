@@ -5,6 +5,7 @@
 
 import { aiCopilot } from './aiCopilot.js';
 import { escapeHTML, safeImageSrc } from '../utils.js';
+import { getClientTier } from '../data/clientTiers.js';
 
 export const ReportGenerator = {
   /**
@@ -129,6 +130,39 @@ export const ReportGenerator = {
               </tr>
             </table>
           </div>
+
+          <!-- 3. DESTINAÇÃO COMERCIAL E CLASSIFICAÇÃO DE RIGOR DO CLIENTE -->
+          ${(() => {
+            const clientTierKey = inspection.clientTier || inspection.equipmentDetails?.clientTier || inspection.equipmentDetails?.reservation?.clientTier;
+            const tierMeta = getClientTier(clientTierKey);
+            const targetClient = inspection.clientName || inspection.equipmentDetails?.client || inspection.equipmentDetails?.reservation?.clientName || 'Padrão Corporativo Geral';
+            return `
+              <div class="report-card" style="grid-column: 1 / -1; background:#F8FAFC; border:1px solid #CBD5E1;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #E2E8F0; padding-bottom:0.5rem; margin-bottom:0.6rem;">
+                  <h3 class="card-title" style="margin:0; font-size:0.95rem;">3. Destinação Comercial & Padrão de Rigor Técnico do Cliente</h3>
+                  ${tierMeta ? `
+                    <span style="background:${tierMeta.bgColor}; color:${tierMeta.color}; border:1px solid ${tierMeta.borderColor}; padding:3px 10px; border-radius:4px; font-size:0.75rem; font-weight:800; display:inline-flex; align-items:center; gap:0.25rem;">
+                      ${tierMeta.badgeLabel}
+                    </span>
+                  ` : ''}
+                </div>
+                <table class="report-table-info">
+                  <tr>
+                    <td><strong>Classificação do Cliente:</strong></td>
+                    <td><strong>${tierMeta ? escapeHTML(tierMeta.name) : 'Padrão Corporativo Geral Locar'}</strong></td>
+                    <td><strong>Nível de Rigor Exigido:</strong></td>
+                    <td><strong style="color:${tierMeta ? tierMeta.color : '#0284C7'};">${tierMeta ? escapeHTML(tierMeta.rigorLevel) : 'Vistoria Preventiva Geral'}</strong></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Cliente Contratante:</strong></td>
+                    <td><strong>${escapeHTML(targetClient)}</strong></td>
+                    <td><strong>Perfil da Operação:</strong></td>
+                    <td>${tierMeta ? escapeHTML(tierMeta.profile) : 'Operação de Frota Padrão Locar'}</td>
+                  </tr>
+                </table>
+              </div>
+            `;
+          })()}
         </div>
 
         <!-- SE NÃO CONFORME: DESTAQUE DAS NÃO CONFORMIDADES ENVIADAS AO PCM -->
