@@ -109,11 +109,10 @@
       <!-- BARRA DE FILTROS E BUSCA -->
       <div class="filters-toolbar">
         <div class="filters-group">
-          <span style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Categoria:</span>
-          <button class="filter-btn filter-type-btn active" data-type="todos">Todos <span class="filter-badge">273</span></button>
-          <button class="filter-btn filter-type-btn" data-type="pta">🏗️ PTA <span class="filter-badge">245</span></button>
-          <button class="filter-btn filter-type-btn" data-type="guindaste">🏗️ Guindastes <span class="filter-badge">26</span></button>
-          <button class="filter-btn filter-type-btn" data-type="empilhadeira">🚜 Empilhadeiras <span class="filter-badge">2</span></button>
+          <span style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Divisão de Negócio:</span>
+          <button class="filter-btn filter-type-btn active" data-type="todos">Todos <span class="filter-badge" id="type-count-todos">273</span></button>
+          <button class="filter-btn filter-type-btn" data-type="pta">🏗️ Divisão PTA <span class="filter-badge" id="type-count-pta">245</span></button>
+          <button class="filter-btn filter-type-btn" data-type="guindastes_div">🏗️ Divisão Guindastes & Outros <span class="filter-badge" id="type-count-guindastes">28</span></button>
         </div>
 
         <div class="filters-group">
@@ -301,11 +300,16 @@
                 <input type="text" id="new-eq-tag" class="search-input" style="border-radius:var(--radius-md);" placeholder="Ex: PTA-105, GD-205, EMP-304" required />
               </div>
               <div>
-                <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">Tipo / Categoria: *</label>
+                <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">Divisão de Negócio & Categoria: *</label>
                 <select id="new-eq-type" class="search-input" style="border-radius:var(--radius-md);" required>
-                  <option value="pta">PTA - Plataforma de Trabalho Aéreo</option>
-                  <option value="guindaste">Guindaste (Rodoviário / RT / Munck)</option>
-                  <option value="empilhadeira">Empilhadeira (Combustão / Elétrica)</option>
+                  <optgroup label="Divisão PTA (Plataformas Elevatórias)">
+                    <option value="pta">PTA - Plataforma Articulada, Telescópica ou Tesoura</option>
+                  </optgroup>
+                  <optgroup label="Divisão Guindastes (Demais Ativos Locar)">
+                    <option value="guindaste">Guindaste (Rodoviário / AT / RT / Esteira)</option>
+                    <option value="guindauto">Guindauto / Caminhão Munck</option>
+                    <option value="empilhadeira">Empilhadeira Industrial (Combustão / Elétrica)</option>
+                  </optgroup>
                 </select>
               </div>
             </div>

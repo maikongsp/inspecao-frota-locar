@@ -641,3 +641,11 @@ export const CHECKLIST_NORMS = {
     ]
   }
 };
+
+// Aliás normativo para Guindautos / Munck (Divisão Guindastes)
+CHECKLIST_NORMS.guindauto = {
+  ...CHECKLIST_NORMS.guindaste,
+  name: 'Guindauto / Caminhão Munck',
+  normativeRef: 'NR-11, NR-12 e ABNT NBR 14768',
+  description: 'Inspeção diária e periódica de guindastes articulados montados sobre caminhão (Guindauto / Munck).'
+};

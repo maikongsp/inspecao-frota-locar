@@ -1,96 +1,85 @@
-# Walkthrough - Módulo de Reserva Comercial de Frota (Locar Betim)
+# Walkthrough - Melhorias Sênior de Arquitetura & Produção (Locar Betim)
 
-Implementamos a funcionalidade completa para o time Comercial da **Locar Guindastes e Transportes Intermodais (Unidade Betim)** realizar a reserva de frotas disponíveis com especificação do período operacional estimado, validação estrita de disponibilidade e transição com um clique para **Locada** no início da operação.
-
----
-
-## 🎯 Regras de Negócio Implementadas
-
-1. **Disponibilidade Estrita**: Apenas equipamentos com status `disponivel` podem receber reservas comerciais. Tentativas em máquinas em `manutencao` ou `bloqueado` são estritamente bloqueadas no front-end e no storage:
-   > *"Regra Comercial Locar: Apenas frotas com status 'DISPONÍVEL' podem ser reservadas."*
-2. **Cálculo Automático de Dias**: O consultor comercial seleciona a data de início e a data de término prevista da operação, e o sistema calcula automaticamente a quantidade de dias úteis/corridos estimados.
-3. **Identificação e Rastreabilidade do Cliente**: Registro do nome do cliente contratante (ex: *Vale*, *Gerdau*, *Petrobras*), proposta comercial/contrato, local da obra/site e requisitos especiais.
-4. **Transição para Locada**: Quando a máquina é mobilizada e a operação é iniciada, o usuário clica em `🚀 Iniciar Operação (Locar)` e o equipamento transita automaticamente para o status **Locada**, registrando data e hora de mobilização.
-5. **Cancelamento Ágil**: Caso o cliente desista ou altere o cronograma, a ação `✕ Cancelar` retorna o equipamento imediatamente para o status **Disponível**, limpando a reserva e guardando o histórico do motivo.
+Implementamos e testamos com sucesso todas as melhorias técnicas levantadas na auditoria sênior, elevando a robustez, a resiliência offline e a experiência de uso da aplicação em campo.
 
 ---
 
-## 🛠️ Arquivos Modificados e Adições
+## 🛠️ O que foi Implementado
 
-| Arquivo | Mudanças Realizadas |
-| :--- | :--- |
-| [index.html](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/index.html) | Adicionado botão de filtro **Reservadas** (`#badge-count-reservada`), atalho rápido de perfil para **Consultor Comercial** no Modal 8, e o **Modal 10 (`#modal-reserve-equipment`)** com todos os campos de proposta, datas e cliente. |
-| [js/modules/auth.js](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/js/modules/auth.js) | Criado o perfil corporativo `commercial` (*Juliana Vasconcelos* - Matrícula `LOC-4200`, PIN `1234`), com o método `canManageReservations()`. |
-| [js/storage.js](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/js/storage.js) | Implementados os métodos `reserveEquipment(id, data)`, `activateRental(id)` e `cancelReservation(id, reason)` com validação estrita de status. |
-| [js/modules/fleetManager.js](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/js/modules/fleetManager.js) | Adicionado card de KPI **Frotas Reservadas**, badge de status âmbar `#F59E0B`, cálculo de taxa de aproveitamento comercial, e botões dinâmicos no card (`📑 Reservar`, banner informativo da reserva, `🚀 Iniciar Operação` e `✕ Cancelar`). |
-| [js/app.js](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/js/app.js) | Delegação de eventos no grid de frota, cálculo em tempo real do período estimado (dias), submissão da reserva, acionamento de início de operação e cancelamento com confirmação, além de contadores dinâmicos nos filtros. |
+### 1. 🕒 Timezone Seguro para o Fuso Horário de Betim/MG
+- **Problema Corrigido**: O uso de `toISOString().split('T')[0]` convertia o horário para UTC (GMT 0), fazendo com que datas após as 21:00 saltassem indevidamente para o dia seguinte.
+- **Implementação**:
+  - Criadas as funções utilitárias `formatLocalDate(date)` e `addDays(date, days)` em [js/utils.js](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/js/utils.js).
+  - Integrado em [js/app.js](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/js/app.js) para preenchimento de reservas e datas contratuais.
+- **Validação**: Testado inclusive no horário crítico de 23:30, mantendo rigorosamente a data local correta.
+
+### 2. 🗄️ Armazenamento Dual-Layer com IndexedDB de Alta Capacidade
+- **Problema Corrigido**: O `localStorage` tem limite estrito de ~5MB, correndo risco de estourar a cota se o inspetor registrar dezenas de laudos com evidências fotográficas em alta resolução sem conexão.
+- **Implementação**:
+  - Criado o módulo [js/modules/indexedDBStorage.js](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/js/modules/indexedDBStorage.js) com banco nativo `locar_inspecoes_betim_v1`.
+  - Integrado em [js/storage.js](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/js/storage.js): Toda inspeção é gravada no IndexedDB (sem limite de 5MB e com suporte a gigabytes de evidências) e espelhada no LocalStorage para renderização instantânea da UI.
+  - Adicionado método `Storage.getInspectionWithFullEvidence(id)` que recupera laudos com fotos em resolução total diretamente do IndexedDB.
+
+### 3. 📄 Exportação Direta de Laudo em PDF (1-Clique Offline)
+- **Problema Corrigido**: A impressão nativa do navegador (`window.print()`) pode ser truncada em celulares ou exigir configuração de impressoras no pátio.
+- **Implementação**:
+  - Baixada e armazenada localmente a biblioteca [js/libs/html2pdf.bundle.min.js](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/js/libs/html2pdf.bundle.min.js) (885 KB), operando 100% offline e compatível com a política CSP da Vercel.
+  - Adicionado botão verde **`📥 Baixar PDF Direto`** no cabeçalho do modal de laudo em [index.html](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/index.html).
+  - Handler em [js/app.js](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/js/app.js) com fallback automático para impressão caso a biblioteca não esteja disponível.
+
+### 4. 🔐 Autenticação Corporativa Híbrida (Appwrite Cloud + Offline Homologado)
+- **Implementação**:
+  - Adicionado método `createSession(email, password)` no [js/appwriteClient.js](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/js/appwriteClient.js).
+  - Atualizado método `login` em [js/modules/auth.js](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/js/modules/auth.js) para autenticação assíncrona. Se online e com credenciais completas, autentica via sessão oficial na nuvem Appwrite Cloud; se no pátio offline, autentica via matrícula e PIN corporativo com auditoria local.
+
+### 5. 🎨 Faixa Lateral Âmbar no Card Reservado
+- **Implementação**: Adicionada regra no [css/components.css](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/css/components.css):
+  ```css
+  .card-reserved::before { background-color: #F59E0B; }
+  ```
+  Agora todas as frotas reservadas exibem a faixa lateral indicadora amarela/âmbar alinhada ao padrão visual Locar.
+
+### 6. 🔄 Cache PWA Atualizado para `v3.1`
+- Atualizado [sw.js](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/sw.js) com `CACHE_NAME = 'locar-inspecao-v3.1'` incluindo os novos arquivos `indexedDBStorage.js` e `html2pdf.bundle.min.js`.
 
 ---
 
 ## 🧪 Resultados dos Testes Automatizados
 
-O script [scratch/test_reservations.js](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/scratch/test_reservations.js) foi executado com sucesso:
+Executamos as três suítes de testes:
+1. **[scratch/test_senior_features.js](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/scratch/test_senior_features.js)**: **15 passaram, 0 falharam**
+   - Timezone local sem salto após 21h/23:30;
+   - IndexedDB interface & dual storage;
+   - Login assíncrono híbrido;
+   - Validade e integridade do arquivo html2pdf (885 KB);
+   - CSS `.card-reserved::before`.
+2. **[scratch/test_reservations.js](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/scratch/test_reservations.js)**: **20 passaram, 0 falharam**
+   - Regra de disponibilidade estrita;
+   - Fluxo de reserva comercial ➔ ativação em locada ➔ cancelamento.
+3. **[scratch/test_inspection_reservation.js](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/scratch/test_inspection_reservation.js)**: **Passou com sucesso**
+   - Vistoria pré-operacional 100% aprovada preserva status `reservada`;
+   - Reprovação por Não Conformidade (Tolerância Zero) retém em `manutencao` e injeta alerta comercial.
 
-```
-=== TESTE DE RESERVA COMERCIAL DE FROTA ===
+## 🏢 Reestruturação das Divisões de Negócio Locar
 
---- 1. Perfil Comercial (RBAC) ---
-✓ PASSOU: Usuário comercial autenticado com sucesso (Juliana Vasconcelos)
-✓ PASSOU: Comercial tem permissão canManageReservations()
-✓ PASSOU: Comercial NÃO tem permissão de inspeção técnica
-✓ PASSOU: Comercial NÃO tem permissão de gerência de frota
+Conforme diretriz oficial do negócio da Locar Betim, o sistema foi adaptado para a divisão operacional e comercial em duas unidades de negócio distintas:
 
---- 2. Regra de Disponibilidade Estrita ---
-✓ PASSOU: Frota carregada com 273 equipamentos
-✓ PASSOU: Tentativa de reservar máquina 'manutencao' foi barrada com a mensagem correta
-✓ PASSOU: Regra estrita barrou equipamento não-disponível
+1. **Divisão PTA (Plataformas Elevatórias)**:
+   - Contempla todas as plataformas de trabalho aéreo (Articuladas, Telescópicas, Tesouras, Mastros verticais).
+   - Volume: **245 ativos**.
+2. **Divisão Guindastes & Demais Ativos**:
+   - Agrupa todos os ativos que **não** são PTA: Guindastes Industriais (AT, RT, Esteiras, Rodoviários Liebherr, Grove, Tadano, XCMG, SANY), Guindautos / Munck, Empilhadeiras Industriais (Yale, Hyster) e Transporte Pesado.
+   - Volume: **28 ativos** (26 Guindastes + 2 Empilhadeiras/Apoio).
 
---- 3. Reserva de Máquina Disponível ---
-✓ PASSOU: Encontrado equipamento disponível: 40/100/36
-✓ PASSOU: Status do equipamento mudou para "reservada"
-✓ PASSOU: Dados do cliente gravados
-✓ PASSOU: Período estimado gravado (15 dias)
-✓ PASSOU: Agente comercial registrado
+### Componentes Atualizados:
+- **Painel Analítico do Dashboard ([js/modules/fleetManager.js](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/js/modules/fleetManager.js))**: Exibe os 2 cards de Business Units com indicadores completos de disponibilidade comercial, equipamentos em campo, manutenção no PCM e composição da sub-frota.
+- **Barra de Filtros ([index.html](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/index.html) e [js/app.js](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/js/app.js))**:
+  - `Todos (273)`
+  - `🏗️ Divisão PTA (245)`
+  - `🏗️ Divisão Guindastes & Outros (28)`
+- **Cards de Equipamentos**: Exibem a etiqueta de identificação da divisão (`Divisão PTA` vs `Divisão Guindastes`).
+- **Exportação CSV**: Inclui coluna dedicada `'Divisão de Negócio'` para auditoria e gestão comercial.
+- **Cadastro de Novos Ativos**: Formulário agrupado por `<optgroup>` com suporte oficial a Guindautos/Munck com checklist NBR 14768 / NR-11 / NR-12.
 
---- 4. Início de Operação (Transição para Locada) ---
-✓ PASSOU: Status mudou com sucesso para "locada"
-✓ PASSOU: Data/hora de início da locação registrada
-✓ PASSOU: Campo de cliente atualizado na frota
-
---- 5. Cancelamento de Reserva ---
-✓ PASSOU: Segundo equipamento disponível encontrado: 40/30/61
-✓ PASSOU: Segundo equipamento reservado
-✓ PASSOU: Status do equipamento retornou para "disponivel" após cancelamento
-✓ PASSOU: reservationData foi limpo
-✓ PASSOU: Histórico de cancelamento registrado
-
-========================================
-RESULTADO DOS TESTES: 20 passaram, 0 falharam
-🎉 TODOS OS REQUISITOS FORAM VALIDADOS COM SUCESSO!
-```
-
----
-
-## 💼 Como Utilizar no Sistema
-
-1. **Acessar como Comercial**:
-   - Clique no ícone de perfil no topo (`👷 Carlos Mendes` ➔ `🔐 Perfil`).
-   - Clique em **💼 Consultor Comercial** (*Juliana Vasconcelos*).
-2. **Reservar um Equipamento**:
-   - No painel da frota, localize qualquer máquina com badge verde **DISPONÍVEL**.
-   - Clique em **`📑 Reservar`**.
-   - No Modal de Reserva Comercial, informe:
-     - **Cliente Contratante** (ex: *Vale S.A.*, *Gerdau*, *Usiminas*);
-     - **Nº da Proposta/Contrato** (ex: *PROP-BET-2026/042*);
-     - **Previsão de Início e Término** (o sistema preenche automaticamente a quantidade de dias);
-     - **Local da Operação e Observações**.
-   - Clique em **`📑 Confirmar Reserva Comercial`**.
-3. **Visualização no Dashboard**:
-   - O card da máquina exibirá o badge âmbar **RESERVADA** e um banner:
-     *`📑 Reservado p/ Vale S.A. - 01/10/2026 a 15/10/2026 (15 dias)`*.
-   - O KPI de **Frotas Reservadas** no topo incrementará o contador.
-4. **Iniciar Operação (Transição para Locada)**:
-   - Quando a máquina for despachada para o cliente, clique no botão azul **`🚀 Iniciar Operação (Locar)`**.
-   - O sistema confirma e transita o status da máquina diretamente para **`LOCADA`**, vinculando o contrato e registrando o início oficial dos trabalhos.
-5. **Se o Cliente Cancelar**:
-   - Basta clicar em **`✕ Cancelar`** no card reservado; a máquina volta a ficar imediatamente **`DISPONÍVEL`** para novos contratos.
+### Validação:
+- Script [scratch/test_business_divisions.js](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/scratch/test_business_divisions.js): **18 passaram, 0 falharam**.

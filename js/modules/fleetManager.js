@@ -24,20 +24,28 @@ export const FleetManager = {
     const badgeBloq = document.getElementById('badge-count-bloqueados');
     if (badgeBloq) badgeBloq.textContent = bloqueados;
 
-    // Métricas segregadas por Categoria (PTA, Guindastes, Empilhadeiras)
-    const getCatStats = (catType) => {
-      const items = fleet.filter(e => e.type === catType);
-      const catTotal = items.length;
-      const catDisp = items.filter(e => e.status === 'disponivel').length;
-      const catLoc = items.filter(e => e.status === 'locada').length;
-      const catMan = items.filter(e => e.status === 'manutencao').length;
-      const catOp = catTotal > 0 ? Math.round(((catDisp + catLoc) / catTotal) * 100) : 0;
-      return { total: catTotal, disp: catDisp, loc: catLoc, man: catMan, taxa: catOp };
-    };
+    // Métricas segregadas pelas 2 Divisões Oficiais de Negócio da Locar:
+    // 1. Divisão PTA (Plataformas Elevatórias: Articuladas, Telescópicas, Tesouras)
+    // 2. Divisão Guindastes & Demais Ativos (Guindastes AT/RT/Esteira, Guindautos, Empilhadeiras e Cargas Pesadas)
+    const ptaItems = fleet.filter(e => e.type === 'pta');
+    const ptaTotal = ptaItems.length;
+    const ptaDisp = ptaItems.filter(e => e.status === 'disponivel').length;
+    const ptaLoc = ptaItems.filter(e => e.status === 'locada').length;
+    const ptaRes = ptaItems.filter(e => e.status === 'reservada').length;
+    const ptaMan = ptaItems.filter(e => e.status === 'manutencao').length;
+    const ptaTaxa = ptaTotal > 0 ? Math.round(((ptaDisp + ptaLoc + ptaRes) / ptaTotal) * 100) : 0;
 
-    const pta = getCatStats('pta');
-    const guindastes = getCatStats('guindaste');
-    const empilhadeiras = getCatStats('empilhadeira');
+    const guindastesItems = fleet.filter(e => e.type !== 'pta');
+    const guindTotal = guindastesItems.length;
+    const guindDisp = guindastesItems.filter(e => e.status === 'disponivel').length;
+    const guindLoc = guindastesItems.filter(e => e.status === 'locada').length;
+    const guindRes = guindastesItems.filter(e => e.status === 'reservada').length;
+    const guindMan = guindastesItems.filter(e => e.status === 'manutencao').length;
+    const guindTaxa = guindTotal > 0 ? Math.round(((guindDisp + guindLoc + guindRes) / guindTotal) * 100) : 0;
+
+    // Sub-segmentação interna da Divisão de Guindastes para auditoria e controle do PCM
+    const countGuindastesPuros = guindastesItems.filter(e => e.type === 'guindaste' || e.type === 'guindauto').length;
+    const countEmpilhadeirasOutros = guindTotal - countGuindastesPuros;
 
     containerElement.innerHTML = `
       <!-- CARDS GERAIS CONSOLIDADOS DA BASE BETIM -->
@@ -92,128 +100,101 @@ export const FleetManager = {
           <div class="kpi-details">
             <span class="kpi-label">Eficiência Operacional</span>
             <span class="kpi-value text-locar">${taxaAprovacao}%</span>
-            <span class="kpi-sub">(Locadas + Disponíveis) / Total</span>
+            <span class="kpi-sub">(Locadas + Disp. + Reserv.) / Total</span>
           </div>
         </div>
       </div>
 
-      <!-- PAINEL DETALHADO POR CATEGORIA DE EQUIPAMENTO -->
-      <div style="margin-top:0.5rem; margin-bottom:0.75rem; display:flex; align-items:center; justify-content:space-between;">
+      <!-- PAINEL DETALHADO POR DIVISÃO DE NEGÓCIO OFICIAL LOCAR -->
+      <div style="margin-top:0.5rem; margin-bottom:0.75rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem;">
         <span style="font-size:0.85rem; font-weight:800; color:#FFFFFF; text-transform:uppercase; letter-spacing:0.5px;">
-          📊 Status Detalhado por Família de Equipamentos (Engeman®)
+          🏢 Divisões de Negócio Locar Betim / MG
         </span>
-        <span style="font-size:0.75rem; color:var(--text-disabled);">Filial 2-Betim / MG</span>
+        <span style="font-size:0.75rem; color:var(--text-disabled);">Estrutura Oficial de Gestão Comercial & Operacional</span>
       </div>
 
       <div class="category-kpis-grid">
-        <!-- 1. CARD ANALÍTICO: PLATAFORMAS ELEVATÓRIAS (PTA) -->
+        <!-- 1. CARD ANALÍTICO: DIVISÃO PTA (PLATAFORMAS ELEVATÓRIAS) -->
         <div class="category-summary-card" style="border-top:3px solid var(--locar-yellow);">
           <div class="category-card-header">
             <div class="category-card-title">
               <span class="category-icon-box">🏗️</span>
               <div class="category-title-text">
-                <span class="category-title-main">Plataformas Elevatórias (PTA)</span>
-                <span class="category-title-sub">Articuladas, Telescópicas e Tesouras</span>
+                <span class="category-title-main">Divisão PTA (Plataformas Elevatórias)</span>
+                <span class="category-title-sub">Articuladas, Telescópicas e Tesouras (Genie, JLG, Haulotte, Skyjack)</span>
               </div>
             </div>
-            <span class="category-badge-total">${pta.total} Ativos</span>
+            <span class="category-badge-total">${ptaTotal} Ativos</span>
           </div>
 
           <div class="category-status-breakdown">
             <div class="status-mini-card">
               <span class="status-mini-label">Disponíveis</span>
-              <span class="status-mini-val status-val-disp">${pta.disp}</span>
-              <span class="status-mini-pct">${Math.round((pta.disp / pta.total) * 100)}% da frota</span>
+              <span class="status-mini-val status-val-disp">${ptaDisp}</span>
+              <span class="status-mini-pct">${Math.round((ptaDisp / (ptaTotal || 1)) * 100)}% da frota</span>
             </div>
             <div class="status-mini-card">
               <span class="status-mini-label">Locadas</span>
-              <span class="status-mini-val status-val-loc">${pta.loc}</span>
-              <span class="status-mini-pct">${Math.round((pta.loc / pta.total) * 100)}% em campo</span>
+              <span class="status-mini-val status-val-loc">${ptaLoc}</span>
+              <span class="status-mini-pct">${Math.round((ptaLoc / (ptaTotal || 1)) * 100)}% em campo</span>
+            </div>
+            <div class="status-mini-card">
+              <span class="status-mini-label">Reservadas</span>
+              <span class="status-mini-val" style="color:#F59E0B;">${ptaRes}</span>
+              <span class="status-mini-pct">${Math.round((ptaRes / (ptaTotal || 1)) * 100)}% comercial</span>
             </div>
             <div class="status-mini-card">
               <span class="status-mini-label">Manutenção</span>
-              <span class="status-mini-val status-val-man">${pta.man}</span>
-              <span class="status-mini-pct">${Math.round((pta.man / pta.total) * 100)}% na oficina</span>
+              <span class="status-mini-val status-val-man">${ptaMan}</span>
+              <span class="status-mini-pct">${Math.round((ptaMan / (ptaTotal || 1)) * 100)}% na oficina</span>
             </div>
           </div>
 
           <div class="category-summary-footer">
-            <span>Aproveitamento: <strong style="color:var(--locar-yellow);">${pta.taxa}%</strong></span>
-            <span>PCM Betim: <strong>${pta.man} O.S.</strong></span>
+            <span>Disponibilidade Comercial: <strong style="color:var(--locar-yellow);">${ptaTaxa}%</strong></span>
+            <span>PCM Betim: <strong>${ptaMan} O.S.</strong></span>
           </div>
         </div>
 
-        <!-- 2. CARD ANALÍTICO: GUINDASTES INDUSTRIAIS -->
+        <!-- 2. CARD ANALÍTICO: DIVISÃO GUINDASTES E DEMAIS ATIVOS -->
         <div class="category-summary-card" style="border-top:3px solid #38BDF8;">
           <div class="category-card-header">
             <div class="category-card-title">
               <span class="category-icon-box">🏗️</span>
               <div class="category-title-text">
-                <span class="category-title-main">Guindastes Industriais</span>
-                <span class="category-title-sub">Liebherr, Grove, Tadano e XCMG</span>
+                <span class="category-title-main">Divisão Guindastes & Demais Ativos</span>
+                <span class="category-title-sub">Guindastes Industriais, Munck, Empilhadeiras e Cargas Pesadas</span>
               </div>
             </div>
-            <span class="category-badge-total" style="background:#38BDF8; color:#0B132B;">${guindastes.total} Ativos</span>
+            <span class="category-badge-total" style="background:#38BDF8; color:#0B132B;">${guindTotal} Ativos</span>
           </div>
 
           <div class="category-status-breakdown">
             <div class="status-mini-card">
               <span class="status-mini-label">Disponíveis</span>
-              <span class="status-mini-val status-val-disp">${guindastes.disp}</span>
-              <span class="status-mini-pct">${Math.round((guindastes.disp / guindastes.total) * 100)}% no pátio</span>
+              <span class="status-mini-val status-val-disp">${guindDisp}</span>
+              <span class="status-mini-pct">${Math.round((guindDisp / (guindTotal || 1)) * 100)}% no pátio</span>
             </div>
             <div class="status-mini-card">
               <span class="status-mini-label">Locados</span>
-              <span class="status-mini-val status-val-loc">${guindastes.loc}</span>
-              <span class="status-mini-pct">${Math.round((guindastes.loc / guindastes.total) * 100)}% em obras</span>
+              <span class="status-mini-val status-val-loc">${guindLoc}</span>
+              <span class="status-mini-pct">${Math.round((guindLoc / (guindTotal || 1)) * 100)}% em obras</span>
+            </div>
+            <div class="status-mini-card">
+              <span class="status-mini-label">Reservados</span>
+              <span class="status-mini-val" style="color:#F59E0B;">${guindRes}</span>
+              <span class="status-mini-pct">${Math.round((guindRes / (guindTotal || 1)) * 100)}% comercial</span>
             </div>
             <div class="status-mini-card">
               <span class="status-mini-label">Manutenção</span>
-              <span class="status-mini-val status-val-man">${guindastes.man}</span>
-              <span class="status-mini-pct">${Math.round((guindastes.man / guindastes.total) * 100)}% revisão</span>
+              <span class="status-mini-val status-val-man">${guindMan}</span>
+              <span class="status-mini-pct">${Math.round((guindMan / (guindTotal || 1)) * 100)}% revisão</span>
             </div>
           </div>
 
           <div class="category-summary-footer">
-            <span>Aproveitamento: <strong style="color:#38BDF8;">${guindastes.taxa}%</strong></span>
-            <span>PCM Betim: <strong>${guindastes.man} O.S.</strong></span>
-          </div>
-        </div>
-
-        <!-- 3. CARD ANALÍTICO: EMPILHADEIRAS OPERACIONAIS -->
-        <div class="category-summary-card" style="border-top:3px solid #F59E0B;">
-          <div class="category-card-header">
-            <div class="category-card-title">
-              <span class="category-icon-box">🚜</span>
-              <div class="category-title-text">
-                <span class="category-title-main">Empilhadeiras Operacionais</span>
-                <span class="category-title-sub">Yale e Hyster (Movimentação)</span>
-              </div>
-            </div>
-            <span class="category-badge-total" style="background:#F59E0B; color:#0B132B;">${empilhadeiras.total} Ativos</span>
-          </div>
-
-          <div class="category-status-breakdown">
-            <div class="status-mini-card">
-              <span class="status-mini-label">Disponíveis</span>
-              <span class="status-mini-val status-val-disp">${empilhadeiras.disp}</span>
-              <span class="status-mini-pct">${Math.round((empilhadeiras.disp / empilhadeiras.total) * 100)}% ativa</span>
-            </div>
-            <div class="status-mini-card">
-              <span class="status-mini-label">Locadas</span>
-              <span class="status-mini-val status-val-loc">${empilhadeiras.loc}</span>
-              <span class="status-mini-pct">0% em campo</span>
-            </div>
-            <div class="status-mini-card">
-              <span class="status-mini-label">Manutenção</span>
-              <span class="status-mini-val status-val-man">${empilhadeiras.man}</span>
-              <span class="status-mini-pct">${Math.round((empilhadeiras.man / empilhadeiras.total) * 100)}% na base</span>
-            </div>
-          </div>
-
-          <div class="category-summary-footer">
-            <span>Aproveitamento: <strong style="color:#F59E0B;">${empilhadeiras.taxa}%</strong></span>
-            <span>PCM Betim: <strong>${empilhadeiras.man} O.S.</strong></span>
+            <span>Disponibilidade Comercial: <strong style="color:#38BDF8;">${guindTaxa}%</strong></span>
+            <span>Composição: <strong>${countGuindastesPuros} Guindastes | ${countEmpilhadeirasOutros} Empilhadeiras/Outros</strong></span>
           </div>
         </div>
       </div>
@@ -225,9 +206,16 @@ export const FleetManager = {
 
     let fleet = Storage.getFleet();
 
-    // Filtro por tipo
+    // Filtro por Divisão de Negócio / Categoria
     if (filterType !== 'todos') {
-      fleet = fleet.filter(e => e.type === filterType);
+      if (filterType === 'pta') {
+        fleet = fleet.filter(e => e.type === 'pta');
+      } else if (filterType === 'guindastes_div' || filterType === 'guindaste') {
+        // Na Locar, todos os equipamentos que não são PTA compõem o negócio Guindastes & Demais Ativos
+        fleet = fleet.filter(e => e.type !== 'pta');
+      } else {
+        fleet = fleet.filter(e => e.type === filterType);
+      }
     }
 
     // Filtro por status
@@ -293,10 +281,15 @@ export const FleetManager = {
       };
 
       const typeMeta = {
-        pta: { label: 'PTA - Plataforma', icon: '🏗' },
-        guindaste: { label: 'Guindaste', icon: '🏗️' },
-        empilhadeira: { label: 'Empilhadeira', icon: '🚜' }
-      }[eq.type] || { label: eq.type.toUpperCase(), icon: '⚙' };
+        pta: { label: 'PTA - Plataforma', icon: '🏗', division: 'Divisão PTA' },
+        guindaste: { label: 'Guindaste', icon: '🏗️', division: 'Divisão Guindastes' },
+        guindauto: { label: 'Guindauto / Munck', icon: '🚛', division: 'Divisão Guindastes' },
+        empilhadeira: { label: 'Empilhadeira', icon: '🚜', division: 'Divisão Guindastes' }
+      }[eq.type] || { 
+        label: (eq.typeName || eq.type).toUpperCase(), 
+        icon: '⚙', 
+        division: eq.type === 'pta' ? 'Divisão PTA' : 'Divisão Guindastes' 
+      };
 
       return `
         <div class="fleet-equipment-card ${statusMeta.cardClass}" data-id="${eq.id}">
@@ -304,6 +297,9 @@ export const FleetManager = {
             <div class="card-tag-box">
               <span class="tag-title">${eq.tag}</span>
               <span class="type-pill">${typeMeta.icon} ${typeMeta.label}</span>
+              <span style="font-size:0.65rem; font-weight:700; color:var(--text-muted); background:rgba(255,255,255,0.06); padding:0.15rem 0.45rem; border-radius:4px; border:1px solid rgba(255,255,255,0.08); text-transform:uppercase;">
+                ${eq.type === 'pta' ? 'Divisão PTA' : 'Divisão Guindastes'}
+              </span>
             </div>
             ${statusMeta.badge}
           </div>
@@ -417,6 +413,7 @@ export const FleetManager = {
     const fleet = Storage.getFleet();
     const headers = [
       'TAG / Prefixo',
+      'Divisão de Negócio',
       'Categoria',
       'Marca',
       'Modelo',
@@ -432,6 +429,7 @@ export const FleetManager = {
 
     const rows = fleet.map(eq => [
       eq.tag,
+      eq.type === 'pta' ? 'Divisão PTA' : 'Divisão Guindastes e Demais Ativos',
       eq.typeName || eq.type,
       eq.brand,
       eq.model,

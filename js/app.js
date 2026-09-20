@@ -409,6 +409,16 @@ function updateNavCounters() {
   const badgeLaudos = document.getElementById('nav-count-laudos');
   if (badgeLaudos) badgeLaudos.textContent = inspections.length;
 
+  // Atualiza contadores dinâmicos da Barra de Divisões de Negócio
+  const typeCountTodos = document.getElementById('type-count-todos');
+  if (typeCountTodos) typeCountTodos.textContent = fleet.length;
+
+  const typeCountPTA = document.getElementById('type-count-pta');
+  if (typeCountPTA) typeCountPTA.textContent = fleet.filter(f => f.type === 'pta').length;
+
+  const typeCountGuindastes = document.getElementById('type-count-guindastes');
+  if (typeCountGuindastes) typeCountGuindastes.textContent = fleet.filter(f => f.type !== 'pta').length;
+
   // Atualiza contadores dinâmicos dos botões de filtro de status da frota
   const countTodos = document.getElementById('badge-count-todos');
   if (countTodos) countTodos.textContent = fleet.length;
@@ -1318,6 +1328,7 @@ function initNewEquipmentForm() {
       const typeNames = {
         pta: 'Plataforma de Trabalho Aéreo',
         guindaste: 'Guindaste Industrial',
+        guindauto: 'Guindauto / Caminhão Munck',
         empilhadeira: 'Empilhadeira Operacional'
       };
 
