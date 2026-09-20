@@ -95,13 +95,13 @@ export const FleetManager = {
         <div class="category-summary-card" style="border-top:3px solid var(--locar-yellow);">
           <div class="category-card-header">
             <div class="category-card-title">
-              <span>🏗️</span>
-              <div>
-                <span>Plataformas Elevatórias (PTA)</span>
-                <span style="display:block; font-size:0.7rem; color:var(--text-muted); font-weight:normal;">Articuladas, Telescópicas e Tesouras</span>
+              <span class="category-icon-box">🏗️</span>
+              <div class="category-title-text">
+                <span class="category-title-main">Plataformas Elevatórias (PTA)</span>
+                <span class="category-title-sub">Articuladas, Telescópicas e Tesouras</span>
               </div>
             </div>
-            <span class="category-badge-total">${pta.total} Equipamentos</span>
+            <span class="category-badge-total">${pta.total} Ativos</span>
           </div>
 
           <div class="category-status-breakdown">
@@ -123,8 +123,8 @@ export const FleetManager = {
           </div>
 
           <div class="category-summary-footer">
-            <span>Aproveitamento Operacional: <strong style="color:var(--locar-yellow);">${pta.taxa}%</strong></span>
-            <span>PCM Betim: <strong>${pta.man} Ordens</strong></span>
+            <span>Aproveitamento: <strong style="color:var(--locar-yellow);">${pta.taxa}%</strong></span>
+            <span>PCM Betim: <strong>${pta.man} O.S.</strong></span>
           </div>
         </div>
 
@@ -132,13 +132,13 @@ export const FleetManager = {
         <div class="category-summary-card" style="border-top:3px solid #38BDF8;">
           <div class="category-card-header">
             <div class="category-card-title">
-              <span>🏗️</span>
-              <div>
-                <span>Guindastes Industriais</span>
-                <span style="display:block; font-size:0.7rem; color:var(--text-muted); font-weight:normal;">Liebherr, Grove, Tadano e XCMG</span>
+              <span class="category-icon-box">🏗️</span>
+              <div class="category-title-text">
+                <span class="category-title-main">Guindastes Industriais</span>
+                <span class="category-title-sub">Liebherr, Grove, Tadano e XCMG</span>
               </div>
             </div>
-            <span class="category-badge-total" style="background:#38BDF8; color:#0B132B;">${guindastes.total} Equipamentos</span>
+            <span class="category-badge-total" style="background:#38BDF8; color:#0B132B;">${guindastes.total} Ativos</span>
           </div>
 
           <div class="category-status-breakdown">
@@ -160,8 +160,8 @@ export const FleetManager = {
           </div>
 
           <div class="category-summary-footer">
-            <span>Aproveitamento Operacional: <strong style="color:#38BDF8;">${guindastes.taxa}%</strong></span>
-            <span>PCM Betim: <strong>${guindastes.man} Ordens</strong></span>
+            <span>Aproveitamento: <strong style="color:#38BDF8;">${guindastes.taxa}%</strong></span>
+            <span>PCM Betim: <strong>${guindastes.man} O.S.</strong></span>
           </div>
         </div>
 
@@ -169,13 +169,13 @@ export const FleetManager = {
         <div class="category-summary-card" style="border-top:3px solid #F59E0B;">
           <div class="category-card-header">
             <div class="category-card-title">
-              <span>🚜</span>
-              <div>
-                <span>Empilhadeiras Operacionais</span>
-                <span style="display:block; font-size:0.7rem; color:var(--text-muted); font-weight:normal;">Yale e Hyster (Movimentação e Logística)</span>
+              <span class="category-icon-box">🚜</span>
+              <div class="category-title-text">
+                <span class="category-title-main">Empilhadeiras Operacionais</span>
+                <span class="category-title-sub">Yale e Hyster (Movimentação)</span>
               </div>
             </div>
-            <span class="category-badge-total" style="background:#F59E0B; color:#0B132B;">${empilhadeiras.total} Equipamentos</span>
+            <span class="category-badge-total" style="background:#F59E0B; color:#0B132B;">${empilhadeiras.total} Ativos</span>
           </div>
 
           <div class="category-status-breakdown">
@@ -197,8 +197,8 @@ export const FleetManager = {
           </div>
 
           <div class="category-summary-footer">
-            <span>Aproveitamento Operacional: <strong style="color:#F59E0B;">${empilhadeiras.taxa}%</strong></span>
-            <span>PCM Betim: <strong>${empilhadeiras.man} Ordem</strong></span>
+            <span>Aproveitamento: <strong style="color:#F59E0B;">${empilhadeiras.taxa}%</strong></span>
+            <span>PCM Betim: <strong>${empilhadeiras.man} O.S.</strong></span>
           </div>
         </div>
       </div>
