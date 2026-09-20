@@ -46,6 +46,16 @@ const DEFAULT_USERS = [
     pin: '1234'
   },
   {
+    id: 'usr_com_01',
+    email: 'comercial.betim@locar.com.br',
+    registration: 'LOC-4200',
+    name: 'Juliana Vasconcelos',
+    role: 'commercial',
+    roleName: 'Consultor Comercial / Locações',
+    phone: '(31) 98321-7788',
+    pin: '1234'
+  },
+  {
     id: 'usr_adm_01',
     email: 'admin@locar.com.br',
     registration: 'LOC-0001',
@@ -162,6 +172,10 @@ export class AuthManager {
 
   canManageFleet() {
     return this.hasRole('manager', 'admin');
+  }
+
+  canManageReservations() {
+    return this.hasRole('commercial', 'manager', 'admin');
   }
 
   logAudit(action, details) {

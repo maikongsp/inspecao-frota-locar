@@ -172,11 +172,208 @@ function initFleetView() {
       if (historyBtn) {
         const eqId = historyBtn.getAttribute('data-id');
         openEquipmentHistoryModal(eqId);
+        return;
+      }
+
+      // Ações Comerciais: Reserva, Ativação de Locação e Cancelamento
+      const reserveBtn = e.target.closest('.btn-open-reserve');
+      if (reserveBtn) {
+        const eqId = reserveBtn.getAttribute('data-id');
+        openReserveModal(eqId);
+        return;
+      }
+
+      const activateBtn = e.target.closest('.btn-activate-rental');
+      if (activateBtn) {
+        const eqId = activateBtn.getAttribute('data-id');
+        handleActivateRental(eqId);
+        return;
+      }
+
+      const cancelBtn = e.target.closest('.btn-cancel-reservation');
+      if (cancelBtn) {
+        const eqId = cancelBtn.getAttribute('data-id');
+        handleCancelReservation(eqId);
+        return;
+      }
+    });
+  }
+
+  // Monitora datas de previsão no modal de reserva comercial
+  const startDateInput = document.getElementById('reserve-start-date');
+  const endDateInput = document.getElementById('reserve-end-date');
+  if (startDateInput) startDateInput.addEventListener('change', updateEstimatedDays);
+  if (endDateInput) endDateInput.addEventListener('change', updateEstimatedDays);
+
+  // Submissão do Formulário de Reserva Comercial
+  const formReserve = document.getElementById('form-reserve-equipment');
+  if (formReserve) {
+    formReserve.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!authManager.canManageReservations()) {
+        showToast('Acesso Restrito: Apenas a equipe Comercial ou Gestores podem confirmar reservas de frota.', 'warning');
+        return;
+      }
+
+      const eqId = document.getElementById('reserve-equipment-id')?.value;
+      const clientName = document.getElementById('reserve-client-name')?.value.trim();
+      const contractRef = document.getElementById('reserve-contract-ref')?.value.trim();
+      const startDate = document.getElementById('reserve-start-date')?.value;
+      const endDate = document.getElementById('reserve-end-date')?.value;
+      const siteLocation = document.getElementById('reserve-site-location')?.value.trim();
+      const notes = document.getElementById('reserve-notes')?.value.trim();
+
+      if (!clientName || !startDate || !endDate) {
+        showToast('Preencha os campos obrigatórios (*)', 'warning');
+        return;
+      }
+
+      if (new Date(endDate) < new Date(startDate)) {
+        showToast('A data de término não pode ser anterior à data de início.', 'danger');
+        return;
+      }
+
+      const d1 = new Date(startDate);
+      const d2 = new Date(endDate);
+      const diffDays = Math.max(1, Math.ceil((d2 - d1) / (1000 * 60 * 60 * 24)));
+
+      const currentUser = authManager.getCurrentUser();
+
+      try {
+        Storage.reserveEquipment(eqId, {
+          clientName,
+          contractRef,
+          startDate,
+          endDate,
+          estimatedDays: diffDays,
+          siteLocation,
+          notes,
+          commercialAgent: currentUser ? currentUser.name : 'Equipe Comercial'
+        });
+
+        closeModal('modal-reserve-equipment');
+        refreshDashboard();
+        showToast(`Equipamento reservado com sucesso para ${clientName} (${diffDays} dias estimados)!`, 'success');
+      } catch (err) {
+        showToast(err.message, 'danger');
       }
     });
   }
 
   refreshDashboard();
+}
+
+function openReserveModal(equipmentId) {
+  if (!authManager.canManageReservations()) {
+    showToast('Acesso Restrito: Apenas a equipe Comercial, Gerência ou Administrador podem efetuar reservas.', 'warning');
+    return;
+  }
+
+  const eq = Storage.getEquipmentById(equipmentId);
+  if (!eq) {
+    showToast('Equipamento não encontrado!', 'danger');
+    return;
+  }
+
+  if (eq.status !== 'disponivel') {
+    showToast(`Regra Locar: Apenas frotas DISPONÍVEIS podem ser reservadas (status atual: ${eq.status.toUpperCase()}).`, 'warning');
+    return;
+  }
+
+  document.getElementById('reserve-equipment-id').value = eq.id;
+  document.getElementById('reserve-equipment-tag').textContent = `${eq.tag} - ${eq.brand} ${eq.model}`;
+  document.getElementById('reserve-equipment-desc').textContent = `${eq.typeName} | Horímetro: ${eq.hourmeter || 0}h | Chassi: ${eq.chassi || 'N/D'}`;
+
+  // Preenche datas padrão (início hoje, término em 7 dias)
+  const today = new Date();
+  const nextWeek = new Date();
+  nextWeek.setDate(today.getDate() + 7);
+
+  const startEl = document.getElementById('reserve-start-date');
+  const endEl = document.getElementById('reserve-end-date');
+  if (startEl) startEl.value = today.toISOString().split('T')[0];
+  if (endEl) endEl.value = nextWeek.toISOString().split('T')[0];
+
+  updateEstimatedDays();
+
+  // Limpa campos adicionais
+  const clientInput = document.getElementById('reserve-client-name');
+  if (clientInput) {
+    clientInput.value = '';
+    setTimeout(() => clientInput.focus(), 150);
+  }
+  const contractInput = document.getElementById('reserve-contract-ref');
+  if (contractInput) contractInput.value = '';
+  const siteInput = document.getElementById('reserve-site-location');
+  if (siteInput) siteInput.value = '';
+  const notesInput = document.getElementById('reserve-notes');
+  if (notesInput) notesInput.value = '';
+
+  openModal('modal-reserve-equipment');
+}
+
+function updateEstimatedDays() {
+  const startVal = document.getElementById('reserve-start-date')?.value;
+  const endVal = document.getElementById('reserve-end-date')?.value;
+  const daysInput = document.getElementById('reserve-estimated-days');
+  if (!daysInput) return;
+
+  if (startVal && endVal) {
+    const d1 = new Date(startVal);
+    const d2 = new Date(endVal);
+    const diffTime = d2 - d1;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays >= 0) {
+      daysInput.value = `${diffDays === 0 ? 1 : diffDays} dia(s)`;
+    } else {
+      daysInput.value = 'Data término inválida';
+    }
+  } else {
+    daysInput.value = '-- dias';
+  }
+}
+
+function handleActivateRental(equipmentId) {
+  if (!authManager.canManageReservations()) {
+    showToast('Acesso Restrito: Permissão necessária para alterar o status operacional do equipamento.', 'warning');
+    return;
+  }
+
+  const eq = Storage.getEquipmentById(equipmentId);
+  if (!eq) return;
+
+  const clientInfo = eq.reservationData ? ` para o cliente "${eq.reservationData.clientName}"` : '';
+  const confirmMsg = `Confirma o início da operação do equipamento ${eq.tag}${clientInfo}?\n\nO status da frota passará para "LOCADA".`;
+  if (confirm(confirmMsg)) {
+    try {
+      Storage.activateRental(equipmentId);
+      refreshDashboard();
+      showToast(`Equipamento ${eq.tag} iniciado com sucesso! Status atualizado para LOCADA.`, 'success');
+    } catch (err) {
+      showToast(err.message, 'danger');
+    }
+  }
+}
+
+function handleCancelReservation(equipmentId) {
+  if (!authManager.canManageReservations()) {
+    showToast('Acesso Restrito: Permissão necessária para cancelar reservas comerciais.', 'warning');
+    return;
+  }
+
+  const eq = Storage.getEquipmentById(equipmentId);
+  if (!eq) return;
+
+  const reason = prompt(`Deseja realmente cancelar a reserva do equipamento ${eq.tag}?\nInforme o motivo do cancelamento:`, 'Cancelado pelo Comercial / Cliente');
+  if (reason !== null) {
+    try {
+      Storage.cancelReservation(equipmentId, reason);
+      refreshDashboard();
+      showToast(`Reserva do equipamento ${eq.tag} cancelada. Frota retornou para DISPONÍVEL.`, 'info');
+    } catch (err) {
+      showToast(err.message, 'danger');
+    }
+  }
 }
 
 function refreshDashboard() {
@@ -212,6 +409,25 @@ function updateNavCounters() {
 
   const badgeLaudos = document.getElementById('nav-count-laudos');
   if (badgeLaudos) badgeLaudos.textContent = inspections.length;
+
+  // Atualiza contadores dinâmicos dos botões de filtro de status da frota
+  const countTodos = document.getElementById('badge-count-todos');
+  if (countTodos) countTodos.textContent = fleet.length;
+
+  const countDisponivel = document.getElementById('badge-count-disponivel');
+  if (countDisponivel) countDisponivel.textContent = fleet.filter(f => f.status === 'disponivel').length;
+
+  const countReservada = document.getElementById('badge-count-reservada');
+  if (countReservada) countReservada.textContent = fleet.filter(f => f.status === 'reservada').length;
+
+  const countLocada = document.getElementById('badge-count-locada');
+  if (countLocada) countLocada.textContent = fleet.filter(f => f.status === 'locada').length;
+
+  const countManutencao = document.getElementById('badge-count-manutencao');
+  if (countManutencao) countManutencao.textContent = fleet.filter(f => f.status === 'manutencao').length;
+
+  const countBloqueados = document.getElementById('badge-count-bloqueados');
+  if (countBloqueados) countBloqueados.textContent = fleet.filter(f => f.status === 'bloqueado').length;
 }
 
 // --- ABA 2: SISTEMA DE INSPEÇÃO (WIZARD GUIADO) ---
@@ -1505,6 +1721,7 @@ function updateAuthUI() {
     const icons = {
       inspector: '👷',
       pcm: '⚙️',
+      commercial: '💼',
       manager: '📊',
       admin: '🛡️'
     };
@@ -1588,6 +1805,7 @@ function renderPermissionsBox() {
     <div style="color:var(--text-muted); font-size:0.75rem; margin-bottom:4px;">Privilégios ativos no sistema:</div>
     <ul style="margin:0 0 0 16px; padding:0; line-height:1.6;">
       <li>${authManager.canInspect() ? '✓' : '✖'} Executar Vistorias Técnicas & Assinar Laudos</li>
+      <li>${authManager.canManageReservations() ? '✓' : '✖'} Reservas Comerciais & Gestão de Contratos</li>
       <li>${authManager.canManagePCM() ? '✓' : '✖'} Gestão de Ordens de Serviço & Parâmetros do PCM</li>
       <li>${authManager.canManageFleet() ? '✓' : '✖'} Cadastro de Equipamentos & Exportação de Frota</li>
     </ul>

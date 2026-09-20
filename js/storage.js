@@ -103,6 +103,95 @@ export const Storage = {
     return equipment;
   },
 
+  // --- GESTÃO COMERCIAL DE RESERVAS E LOCAÇÃO ---
+  reserveEquipment(id, reservationData) {
+    const fleet = this.getFleet();
+    const index = fleet.findIndex(item => item.id === id || item.tag === id);
+    if (index === -1) {
+      throw new Error(`Equipamento ${id} não encontrado na frota de Betim.`);
+    }
+
+    const eq = fleet[index];
+    if (eq.status !== 'disponivel') {
+      throw new Error(`Regra Comercial Locar: Apenas frotas com status 'DISPONÍVEL' podem ser reservadas. O equipamento ${eq.tag} está '${eq.status.toUpperCase()}'.`);
+    }
+
+    const reservation = {
+      id: `RES-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`,
+      clientName: reservationData.clientName || 'Cliente Corporativo',
+      contractRef: reservationData.contractRef || 'Proposta Comercial',
+      startDate: reservationData.startDate,
+      endDate: reservationData.endDate,
+      estimatedDays: reservationData.estimatedDays || 0,
+      siteLocation: reservationData.siteLocation || 'Betim / Região',
+      commercialAgent: reservationData.commercialAgent || 'Time Comercial Locar',
+      notes: reservationData.notes || '',
+      reservedAt: new Date().toISOString()
+    };
+
+    eq.status = 'reservada';
+    eq.reservation = reservation;
+    eq.reservationData = reservation;
+    eq.notes = `RESERVADO p/ ${reservation.clientName} (${reservation.startDate} até ${reservation.endDate})`;
+
+    this.saveFleet(fleet);
+    return eq;
+  },
+
+  activateRental(id) {
+    const fleet = this.getFleet();
+    const index = fleet.findIndex(item => item.id === id || item.tag === id);
+    if (index === -1) {
+      throw new Error(`Equipamento ${id} não encontrado.`);
+    }
+
+    const eq = fleet[index];
+    if (eq.status !== 'reservada') {
+      throw new Error(`Apenas frotas com status 'RESERVADA' podem ter a operação iniciada como 'Locada'.`);
+    }
+
+    const client = eq.reservation?.clientName || eq.reservationData?.clientName || 'Cliente Locar';
+    const contract = eq.reservation?.contractRef || eq.reservationData?.contractRef || 'Contrato Ativo';
+    const nowIso = new Date().toISOString();
+
+    eq.status = 'locada';
+    eq.client = client;
+    eq.currentContract = `${client} (${contract})`;
+    if (eq.reservation) eq.reservation.rentalStartedAt = nowIso;
+    if (eq.reservationData) eq.reservationData.rentalStartedAt = nowIso;
+    eq.notes = `EM OPERAÇÃO / LOCADA para ${client}. Início: ${eq.reservation?.startDate || 'Hoje'}`;
+
+    this.saveFleet(fleet);
+    return eq;
+  },
+
+  cancelReservation(id, reason = 'Reserva cancelada pelo time comercial.') {
+    const fleet = this.getFleet();
+    const index = fleet.findIndex(item => item.id === id || item.tag === id);
+    if (index === -1) {
+      throw new Error(`Equipamento ${id} não encontrado.`);
+    }
+
+    const eq = fleet[index];
+    if (eq.status !== 'reservada') {
+      throw new Error(`O equipamento ${eq.tag} não está reservado.`);
+    }
+
+    eq.lastCancelledReservation = {
+      ...(eq.reservation || eq.reservationData || {}),
+      reason,
+      cancelledAt: new Date().toISOString()
+    };
+
+    eq.status = 'disponivel';
+    eq.reservation = null;
+    eq.reservationData = null;
+    eq.notes = reason;
+
+    this.saveFleet(fleet);
+    return eq;
+  },
+
   // --- HISTÓRICO DE INSPEÇÕES ---
   getInspections() {
     try {

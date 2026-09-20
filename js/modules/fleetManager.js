@@ -15,10 +15,11 @@ export const FleetManager = {
     const fleet = Storage.getFleet();
     const total = fleet.length;
     const disponiveis = fleet.filter(e => e.status === 'disponivel').length;
+    const reservadas = fleet.filter(e => e.status === 'reservada').length;
     const manutencao = fleet.filter(e => e.status === 'manutencao').length;
     const bloqueados = fleet.filter(e => e.status === 'bloqueado').length;
     const locadas = fleet.filter(e => e.status === 'locada').length;
-    const taxaAprovacao = total > 0 ? Math.round(((disponiveis + locadas) / total) * 100) : 0;
+    const taxaAprovacao = total > 0 ? Math.round(((disponiveis + locadas + reservadas) / total) * 100) : 0;
 
     const badgeBloq = document.getElementById('badge-count-bloqueados');
     if (badgeBloq) badgeBloq.textContent = bloqueados;
@@ -56,6 +57,15 @@ export const FleetManager = {
             <span class="kpi-label">Total Disponíveis</span>
             <span class="kpi-value text-success">${disponiveis}</span>
             <span class="kpi-sub">Aptos para Locação</span>
+          </div>
+        </div>
+
+        <div class="kpi-card" style="border-left:4px solid #F59E0B;">
+          <div class="kpi-icon-box" style="background:rgba(245,158,11,0.15); color:#F59E0B;">📑</div>
+          <div class="kpi-details">
+            <span class="kpi-label">Total Reservadas</span>
+            <span class="kpi-value" style="color:#F59E0B;">${reservadas}</span>
+            <span class="kpi-sub">Comercial / Em Negociação</span>
           </div>
         </div>
 
@@ -257,6 +267,10 @@ export const FleetManager = {
           badge: '<span class="fleet-badge badge-liberado"><span class="dot"></span> DISPONÍVEL NO PÁTIO</span>',
           cardClass: 'card-available'
         },
+        reservada: {
+          badge: '<span class="fleet-badge" style="background:rgba(245,158,11,0.15); color:#F59E0B; border:1px solid rgba(245,158,11,0.4);"><span class="dot" style="background:#F59E0B;"></span> RESERVADA (COMERCIAL)</span>',
+          cardClass: 'card-reserved'
+        },
         locada: {
           badge: '<span class="fleet-badge" style="background:rgba(56,189,248,0.15); color:#38BDF8; border:1px solid rgba(56,189,248,0.4);"><span class="dot" style="background:#38BDF8;"></span> LOCADA EM OBRA</span>',
           cardClass: 'card-rented'
@@ -328,13 +342,46 @@ export const FleetManager = {
             </div>
           </div>
 
-          <div class="fleet-card-footer">
-            <button class="btn btn-primary btn-start-inspection" data-id="${eq.id}" data-type="${eq.type}">
-              📋 Iniciar Inspeção Técnica
-            </button>
-            <button class="btn btn-secondary btn-view-history" data-id="${eq.id}">
-              📜 Histórico
-            </button>
+          <div class="fleet-card-footer" style="display:flex; flex-direction:column; gap:0.5rem;">
+            ${eq.status === 'reservada' ? `
+              <div style="background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.35); border-radius:var(--radius-sm); padding:0.5rem; font-size:0.75rem; color:#FDE68A;">
+                <div style="font-weight:700; color:#F59E0B; margin-bottom:2px;">
+                  📑 Reservado p/ ${eq.reservation?.clientName || 'Cliente Corporativo'}
+                </div>
+                <div style="font-size:0.7rem; color:var(--text-muted);">
+                  Período: ${eq.reservation?.startDate || '--'} até ${eq.reservation?.endDate || '--'} (${eq.reservation?.estimatedDays || 0} dias estimados)
+                </div>
+              </div>
+              <div style="display:flex; gap:0.4rem; width:100%;">
+                <button type="button" class="btn btn-sm btn-success btn-activate-rental" data-id="${eq.id}" style="background:#10B981; color:#FFF; font-weight:700; flex:1; justify-content:center;">
+                  🚀 Iniciar Operação (Locar)
+                </button>
+                <button type="button" class="btn btn-sm btn-secondary btn-cancel-reservation" data-id="${eq.id}" title="Cancelar Reserva Comercial">
+                  ✕ Cancelar
+                </button>
+              </div>
+            ` : eq.status === 'disponivel' ? `
+              <div style="display:flex; gap:0.4rem; width:100%;">
+                <button type="button" class="btn btn-primary btn-start-inspection" data-id="${eq.id}" data-type="${eq.type}" style="flex:1;">
+                  📋 Inspecionar
+                </button>
+                <button type="button" class="btn btn-warning btn-open-reserve" data-id="${eq.id}" style="background:#F59E0B; color:#0F172A; font-weight:700; border:none; padding:0.45rem 0.75rem;">
+                  📑 Reservar
+                </button>
+                <button type="button" class="btn btn-secondary btn-view-history" data-id="${eq.id}" title="Histórico de Vistorias">
+                  📜
+                </button>
+              </div>
+            ` : `
+              <div style="display:flex; gap:0.4rem; width:100%;">
+                <button type="button" class="btn btn-primary btn-start-inspection" data-id="${eq.id}" data-type="${eq.type}" style="flex:1;">
+                  📋 Iniciar Inspeção
+                </button>
+                <button type="button" class="btn btn-secondary btn-view-history" data-id="${eq.id}">
+                  📜 Histórico
+                </button>
+              </div>
+            `}
           </div>
         </div>
       `;
