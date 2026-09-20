@@ -83,3 +83,32 @@ Conforme diretriz oficial do negócio da Locar Betim, o sistema foi adaptado par
 
 ### Validação:
 - Script [scratch/test_business_divisions.js](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/scratch/test_business_divisions.js): **18 passaram, 0 falharam**.
+
+---
+
+## 🔒 Modo Consulta Livre & Login Obrigatório para Operações
+
+Implementada a diretriz de abertura sem perfil pré-definido, mantendo a consulta de frota totalmente aberta e exigindo identificação por perfil corporativo apenas no momento de executar ações.
+
+### 1. Abertura do Sistema em Modo Consulta Livre:
+- O sistema inicia **sempre sem perfil pré-selecionado** (`currentUser = null`), eliminando o auto-login anterior.
+- O cabeçalho exibe o status de acesso: **`👤 Modo Consulta | Identifique-se para ações`** acompanhado do botão **`🔐 Entrar`**.
+- **Consulta Livre Total:** Qualquer operador pode visualizar todo o painel de 273 frotas, alternar divisões (PTA / Guindastes), aplicar filtros de status, pesquisar equipamentos, consultar fichas técnicas, inspecionar histórico de manutenções e validar laudos forenses sem necessidade de login prévio.
+
+### 2. Ações Bloqueadas sem Autenticação (Login Contextual):
+Toda tentativa de executar uma ação operacional sem estar autenticado intercepta a chamada, guarda a ação pendente e abre o modal de autenticação com aviso contextual explicativo:
+- **Vistoria Técnica / Checklists Normativos**: Bloqueado até login com perfil `inspector`, `manager` ou `admin`.
+- **Reserva Comercial de Frota**: Bloqueado até login com perfil `commercial`, `manager` ou `admin`.
+- **Iniciar Operação (Transição para Locada)**: Exige perfil Comercial/Gestor.
+- **Cancelar Reserva Comercial**: Exige perfil Comercial/Gestor.
+- **Cadastro de Novo Equipamento**: Aba e formulário restritos a `manager` e `admin`.
+- **Alteração de Ordens de Serviço no PCM**: Exige perfil `pcm` ou `admin`.
+- **Configurações do PCM**: Exige perfil `pcm` ou `admin`.
+
+### 3. Continuidade Transparente pós-Login:
+- Ao fazer login (seja por seleção rápida de perfil homologado ou por Matrícula e PIN corporativo), a ação pendente é **executada automaticamente** (ex: o modal de vistoria ou reserva da máquina clicada abre diretamente, sem exigir nova navegação).
+- Ao clicar em **`Encerrar Sessão`**, o sistema retorna imediatamente para o **Modo Consulta Livre**.
+
+### Validação:
+- Script [scratch/test_guest_mode.js](file:///c:/Users/maiko/Desktop/Maikon%20Pinho/Projetos%20IA/Inspeção%20Locar/scratch/test_guest_mode.js): **19 passaram, 0 falharam**.
+

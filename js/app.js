@@ -77,11 +77,75 @@ function initNavigation() {
   });
 }
 
+// --- CONTROLE DE ACESSO CONTEXTUAL (LOGIN OBRIGATÓRIO PARA AÇÕES) ---
+let pendingAuthAction = null;
+
+export function requireAuth(actionDescription, callback, permissionCheck = null) {
+  if (!authManager.isAuthenticated()) {
+    pendingAuthAction = callback;
+    const noticeEl = document.getElementById('auth-action-notice');
+    if (noticeEl) {
+      noticeEl.innerHTML = `
+        <div style="background:rgba(245,158,11,0.15); border:1px solid #F59E0B; border-radius:var(--radius-sm); padding:0.65rem 0.85rem; color:#FDE68A; font-size:0.8rem; display:flex; align-items:flex-start; gap:0.5rem;">
+          <span style="font-size:1.15rem; line-height:1;">🔒</span>
+          <div>
+            <strong style="color:#F59E0B; display:block; margin-bottom:2px;">Identificação Obrigatória</strong>
+            ${escapeHTML(actionDescription || 'Para realizar esta operação, é obrigatório efetuar login com seu perfil profissional.')}
+          </div>
+        </div>
+      `;
+      noticeEl.style.display = 'block';
+    }
+
+    openModal('modal-auth-control');
+    renderPermissionsBox();
+    showToast('Identifique-se com seu perfil para realizar esta ação.', 'warning');
+    return false;
+  }
+
+  if (permissionCheck) {
+    const allowed = typeof permissionCheck === 'function' ? permissionCheck() : authManager.hasRole(permissionCheck);
+    if (!allowed) {
+      const user = authManager.getCurrentUser();
+      showToast(`Acesso Restrito: Seu perfil atual (${user?.roleName || 'Convidado'}) não possui autorização para esta ação.`, 'danger');
+      return false;
+    }
+  }
+
+  if (callback) callback();
+  return true;
+}
+
 export function switchTab(tabId) {
-  // Verificação de permissões RBAC
-  if (tabId === 'novo-equipamento' && !authManager.canManageFleet()) {
-    showToast('Acesso Restrito: Apenas o Gestor de Frota ou Administrador podem cadastrar novos equipamentos.', 'warning');
-    return;
+  // Verificação de permissões RBAC para abas operacionais
+  if (tabId === 'novo-equipamento') {
+    if (!authManager.isAuthenticated()) {
+      requireAuth(
+        'O cadastro de novos ativos exige autenticação com perfil de Gerente de Frota ou Administrador.',
+        () => switchTab('novo-equipamento'),
+        () => authManager.canManageFleet()
+      );
+      return;
+    }
+    if (!authManager.canManageFleet()) {
+      showToast('Acesso Restrito: Apenas o Gestor de Frota ou Administrador podem cadastrar novos equipamentos.', 'warning');
+      return;
+    }
+  }
+
+  if (tabId === 'inspecao' && !InspectionEngine.currentInspection) {
+    if (!authManager.isAuthenticated()) {
+      requireAuth(
+        'A realização de inspeções técnicas e preenchimento de checklists exige identificação com perfil de Inspetor Técnico.',
+        () => switchTab('inspecao'),
+        () => authManager.canInspect()
+      );
+      return;
+    }
+    if (!authManager.canInspect()) {
+      showToast('Acesso Restrito: Seu perfil atual não possui permissão para assinar vistorias técnicas.', 'danger');
+      return;
+    }
   }
 
   AppState.currentTab = tabId;
@@ -164,7 +228,11 @@ function initFleetView() {
       const startBtn = e.target.closest('.btn-start-inspection');
       if (startBtn) {
         const eqId = startBtn.getAttribute('data-id');
-        promptStartInspection(eqId);
+        requireAuth(
+          'Para iniciar vistoria técnica e preencher o checklist normativo, identifique-se com perfil de Inspetor Técnico.',
+          () => promptStartInspection(eqId),
+          () => authManager.canInspect()
+        );
         return;
       }
 
@@ -175,25 +243,37 @@ function initFleetView() {
         return;
       }
 
-      // Ações Comerciais: Reserva, Ativação de Locação e Cancelamento
+      // Ações Comerciais: Reserva, Ativação de Locação e Cancelamento (Exigem Login)
       const reserveBtn = e.target.closest('.btn-open-reserve');
       if (reserveBtn) {
         const eqId = reserveBtn.getAttribute('data-id');
-        openReserveModal(eqId);
+        requireAuth(
+          'Para reservar frotas disponíveis para clientes, identifique-se com perfil Comercial ou Gestor.',
+          () => openReserveModal(eqId),
+          () => authManager.canManageReservations()
+        );
         return;
       }
 
       const activateBtn = e.target.closest('.btn-activate-rental');
       if (activateBtn) {
         const eqId = activateBtn.getAttribute('data-id');
-        handleActivateRental(eqId);
+        requireAuth(
+          'Para iniciar a operação contratual e alterar a frota para LOCADA, identifique-se com perfil Comercial ou Gestor.',
+          () => handleActivateRental(eqId),
+          () => authManager.canManageReservations()
+        );
         return;
       }
 
       const cancelBtn = e.target.closest('.btn-cancel-reservation');
       if (cancelBtn) {
         const eqId = cancelBtn.getAttribute('data-id');
-        handleCancelReservation(eqId);
+        requireAuth(
+          'Para cancelar reservas e retornar a frota para DISPONÍVEL, identifique-se com perfil Comercial ou Gestor.',
+          () => handleCancelReservation(eqId),
+          () => authManager.canManageReservations()
+        );
         return;
       }
     });
@@ -210,8 +290,12 @@ function initFleetView() {
   if (formReserve) {
     formReserve.addEventListener('submit', (e) => {
       e.preventDefault();
-      if (!authManager.canManageReservations()) {
-        showToast('Acesso Restrito: Apenas a equipe Comercial ou Gestores podem confirmar reservas de frota.', 'warning');
+      if (!authManager.isAuthenticated() || !authManager.canManageReservations()) {
+        requireAuth(
+          'Apenas a equipe Comercial ou Gestores de Frota podem confirmar reservas de frota.',
+          null,
+          () => authManager.canManageReservations()
+        );
         return;
       }
 
@@ -333,6 +417,14 @@ function updateEstimatedDays() {
 }
 
 function handleActivateRental(equipmentId) {
+  if (!authManager.isAuthenticated()) {
+    requireAuth(
+      'Para iniciar a operação e alterar a frota para LOCADA, identifique-se com perfil Comercial ou Gestor.',
+      () => handleActivateRental(equipmentId),
+      () => authManager.canManageReservations()
+    );
+    return;
+  }
   if (!authManager.canManageReservations()) {
     showToast('Acesso Restrito: Permissão necessária para alterar o status operacional do equipamento.', 'warning');
     return;
@@ -355,6 +447,14 @@ function handleActivateRental(equipmentId) {
 }
 
 function handleCancelReservation(equipmentId) {
+  if (!authManager.isAuthenticated()) {
+    requireAuth(
+      'Para cancelar a reserva comercial e liberar a máquina, identifique-se com perfil Comercial ou Gestor.',
+      () => handleCancelReservation(equipmentId),
+      () => authManager.canManageReservations()
+    );
+    return;
+  }
   if (!authManager.canManageReservations()) {
     showToast('Acesso Restrito: Permissão necessária para cancelar reservas comerciais.', 'warning');
     return;
@@ -441,6 +541,19 @@ function updateNavCounters() {
 
 // --- ABA 2: SISTEMA DE INSPEÇÃO (WIZARD GUIADO) ---
 function promptStartInspection(equipmentId) {
+  if (!authManager.isAuthenticated()) {
+    requireAuth(
+      'Para iniciar vistoria técnica e preencher o checklist normativo, identifique-se com perfil de Inspetor Técnico.',
+      () => promptStartInspection(equipmentId),
+      () => authManager.canInspect()
+    );
+    return;
+  }
+  if (!authManager.canInspect()) {
+    showToast('Acesso Restrito: Seu perfil atual não tem autorização para realizar vistorias técnicas.', 'danger');
+    return;
+  }
+
   const equipment = Storage.getEquipmentById(equipmentId);
   if (!equipment) {
     showToast('Equipamento não encontrado!', 'danger');
@@ -491,6 +604,10 @@ function initInspectionEvents() {
   if (formStart) {
     formStart.addEventListener('submit', (e) => {
       e.preventDefault();
+      if (!authManager.isAuthenticated() || !authManager.canInspect()) {
+        requireAuth('Identifique-se com perfil de Inspetor Técnico para iniciar a vistoria.', null, () => authManager.canInspect());
+        return;
+      }
       const eqId = document.getElementById('modal-start-eq-id').value;
       const firstName = document.getElementById('input-insp-first-name').value.trim();
       const lastName = document.getElementById('input-insp-last-name').value.trim();
@@ -1182,6 +1299,15 @@ function initPCMServiceRequestsView() {
       // Avançar fluxo de trabalho da SS do PCM
       const btnAdvance = e.target.closest('.btn-advance-ss');
       if (btnAdvance) {
+        if (!authManager.isAuthenticated() || !authManager.canManagePCM()) {
+          requireAuth(
+            'Para atualizar ordens de serviço e status de manutenção no PCM, identifique-se com perfil do PCM ou Administrador.',
+            () => btnAdvance.click(),
+            () => authManager.canManagePCM()
+          );
+          return;
+        }
+
         const ssId = btnAdvance.getAttribute('data-id');
         const currentStatus = btnAdvance.getAttribute('data-current');
         
@@ -1316,6 +1442,14 @@ function initNewEquipmentForm() {
   if (form) {
     form.addEventListener('submit', (e) => {
       e.preventDefault();
+      if (!authManager.isAuthenticated() || !authManager.canManageFleet()) {
+        requireAuth(
+          'O cadastro de novos ativos exige autenticação com perfil de Gerente de Frota ou Administrador.',
+          null,
+          () => authManager.canManageFleet()
+        );
+        return;
+      }
       const tag = document.getElementById('new-eq-tag').value.trim().toUpperCase();
       const type = document.getElementById('new-eq-type').value;
       const brand = document.getElementById('new-eq-brand').value.trim();
@@ -1363,8 +1497,12 @@ function initPCMSettings() {
   const btnOpen = document.getElementById('btn-open-pcm-settings');
   if (btnOpen) {
     btnOpen.addEventListener('click', () => {
-      if (!authManager.canManagePCM()) {
-        showToast('Acesso Restrito: Apenas a equipe PCM / Engenharia de Manutenção pode alterar configurações.', 'warning');
+      if (!authManager.isAuthenticated() || !authManager.canManagePCM()) {
+        requireAuth(
+          'Para configurar e-mails e parâmetros do PCM, identifique-se como Gestor PCM ou Administrador.',
+          () => btnOpen.click(),
+          () => authManager.canManagePCM()
+        );
         return;
       }
       const config = Storage.getPCMConfig();
@@ -1668,20 +1806,24 @@ function showToast(message, type = 'info') {
 function initAuthSystem() {
   updateAuthUI();
 
+  const openAuthModalClean = () => {
+    pendingAuthAction = null;
+    const noticeEl = document.getElementById('auth-action-notice');
+    if (noticeEl) noticeEl.style.display = 'none';
+    openModal('modal-auth-control');
+    renderPermissionsBox();
+  };
+
   const userBadge = document.getElementById('user-session-badge');
   if (userBadge) {
-    userBadge.addEventListener('click', () => {
-      openModal('modal-auth-control');
-      renderPermissionsBox();
-    });
+    userBadge.addEventListener('click', openAuthModalClean);
   }
 
   const btnOpenAuth = document.getElementById('btn-open-auth-modal');
   if (btnOpenAuth) {
     btnOpenAuth.addEventListener('click', (e) => {
       e.stopPropagation();
-      openModal('modal-auth-control');
-      renderPermissionsBox();
+      openAuthModalClean();
     });
   }
 
@@ -1736,8 +1878,13 @@ function initAuthSystem() {
       if (switched) {
         updateAuthUI();
         renderPermissionsBox();
-        showToast(`Perfil alterado para: ${switched.name} (${switched.roleName})`, 'success');
+        showToast(`Perfil ativado: ${switched.name} (${switched.roleName})`, 'success');
         closeAllModals();
+        if (pendingAuthAction) {
+          const actionToRun = pendingAuthAction;
+          pendingAuthAction = null;
+          actionToRun();
+        }
       }
     });
   });
@@ -1758,6 +1905,11 @@ function initAuthSystem() {
         const sourceNotice = res.authSource === 'appwrite_cloud' ? 'via Nuvem Appwrite Cloud' : 'via Matrícula Homologada';
         showToast(`✓ Operador autenticado com sucesso: ${res.user.name} (${sourceNotice})`, 'success');
         closeAllModals();
+        if (pendingAuthAction) {
+          const actionToRun = pendingAuthAction;
+          pendingAuthAction = null;
+          actionToRun();
+        }
       } else {
         showToast(res.error, 'danger');
       }
@@ -1768,9 +1920,10 @@ function initAuthSystem() {
   if (btnLogout) {
     btnLogout.addEventListener('click', () => {
       authManager.logout();
+      pendingAuthAction = null;
       updateAuthUI();
       renderPermissionsBox();
-      showToast('Sessão encerrada com segurança.', 'info');
+      showToast('Sessão encerrada. Sistema retornou ao Modo Consulta Livre.', 'info');
       closeAllModals();
     });
   }
@@ -1781,22 +1934,49 @@ function updateAuthUI() {
   const nameEl = document.getElementById('user-display-name');
   const roleEl = document.getElementById('user-display-role');
   const iconEl = document.getElementById('user-avatar-icon');
+  const btnAuth = document.getElementById('btn-open-auth-modal');
+  const btnLogout = document.getElementById('btn-auth-logout');
 
-  if (nameEl && user) nameEl.textContent = user.name;
-  if (roleEl && user) roleEl.textContent = user.roleName || user.role;
-  if (iconEl && user) {
-    const icons = {
-      inspector: '👷',
-      pcm: '⚙️',
-      commercial: '💼',
-      manager: '📊',
-      admin: '🛡️'
-    };
-    iconEl.textContent = icons[user.role] || '👤';
-  }
+  if (!user) {
+    if (nameEl) nameEl.textContent = 'Modo Consulta';
+    if (roleEl) {
+      roleEl.textContent = 'Identifique-se para ações';
+      roleEl.style.color = 'var(--text-muted)';
+    }
+    if (iconEl) iconEl.textContent = '👤';
+    if (btnAuth) btnAuth.innerHTML = '🔐 Entrar';
+    if (btnLogout) btnLogout.style.display = 'none';
 
-  // Preenche dados padrão do inspetor se os inputs existirem
-  if (user) {
+    // Limpa campos de dados do inspetor para evitar assunção indevida de identidade
+    const fnInput = document.getElementById('input-insp-first-name');
+    const lnInput = document.getElementById('input-insp-last-name');
+    const phInput = document.getElementById('input-insp-phone');
+    if (fnInput) fnInput.value = '';
+    if (lnInput) lnInput.value = '';
+    if (phInput) phInput.value = '';
+  } else {
+    if (nameEl) nameEl.textContent = user.name;
+    if (roleEl) {
+      roleEl.textContent = user.roleName || user.role;
+      roleEl.style.color = 'var(--locar-yellow)';
+    }
+    if (iconEl) {
+      const icons = {
+        inspector: '👷',
+        pcm: '⚙️',
+        commercial: '💼',
+        manager: '📊',
+        admin: '🛡️'
+      };
+      iconEl.textContent = icons[user.role] || '👤';
+    }
+    if (btnAuth) btnAuth.innerHTML = '👤 Perfil';
+    if (btnLogout) {
+      btnLogout.style.display = 'inline-flex';
+      btnLogout.textContent = 'Encerrar Sessão (Modo Consulta)';
+    }
+
+    // Preenche dados padrão do inspetor se for inspetor ou gestor
     const fnInput = document.getElementById('input-insp-first-name');
     const lnInput = document.getElementById('input-insp-last-name');
     const phInput = document.getElementById('input-insp-phone');
@@ -1813,8 +1993,9 @@ function updateAuthUI() {
   // Indicador visual de abas com restrição de acesso
   const tabNovoEq = document.querySelector('.nav-tab[data-tab="novo-equipamento"]');
   if (tabNovoEq) {
-    tabNovoEq.style.opacity = authManager.canManageFleet() ? '1' : '0.65';
-    tabNovoEq.title = authManager.canManageFleet() ? '' : 'Acesso restrito: Requer perfil Gestor de Frota';
+    const canManage = authManager.canManageFleet();
+    tabNovoEq.style.opacity = canManage ? '1' : '0.65';
+    tabNovoEq.title = canManage ? '' : 'Acesso restrito: Requer perfil Gestor de Frota ou Administrador';
   }
 
   updateCloudSyncIndicator();
@@ -1860,7 +2041,18 @@ function renderPermissionsBox() {
   if (!box) return;
   const user = authManager.getCurrentUser();
   if (!user) {
-    box.innerHTML = '<em>Nenhum operador autenticado no momento.</em>';
+    box.innerHTML = `
+      <div style="display:flex; align-items:flex-start; gap:0.6rem; color:#94A3B8;">
+        <span style="font-size:1.3rem; line-height:1.2;">👁️</span>
+        <div>
+          <strong style="color:#FFF; display:block; font-size:0.82rem; margin-bottom:2px;">Nenhum Perfil Conectado (Consulta Livre)</strong>
+          <span style="font-size:0.75rem; line-height:1.4; display:block;">
+            Você pode navegar livremente pela frota, consultar indicadores e analisar laudos periciais.
+            Para executar vistorias, reservas, alterar status ou cadastrar frotas, escolha um perfil homologado acima ou faça login.
+          </span>
+        </div>
+      </div>
+    `;
     return;
   }
 

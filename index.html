@@ -42,13 +42,13 @@
       <div class="header-actions">
         <!-- Indicador de Usuário e Perfil Corporativo Ativo (RBAC) -->
         <div class="user-session-badge" id="user-session-badge" style="display:flex; align-items:center; gap:0.6rem; background:var(--locar-chumbo-surface); padding:0.35rem 0.75rem; border-radius:var(--radius-md); border:1px solid var(--locar-chumbo-border); cursor:pointer;" title="Clique para gerenciar usuário e perfil de acesso">
-          <span style="font-size:1.15rem;" id="user-avatar-icon">👷</span>
+          <span style="font-size:1.15rem;" id="user-avatar-icon">👤</span>
           <div style="display:flex; flex-direction:column; line-height:1.2;">
-            <span style="font-weight:700; font-size:0.8rem; color:#FFFFFF;" id="user-display-name">Carlos Mendes</span>
-            <span style="font-size:0.68rem; color:var(--locar-yellow); font-weight:600;" id="user-display-role">Inspetor Técnico</span>
+            <span style="font-weight:700; font-size:0.8rem; color:#FFFFFF;" id="user-display-name">Modo Consulta</span>
+            <span style="font-size:0.68rem; color:var(--text-muted); font-weight:600;" id="user-display-role">Identifique-se para ações</span>
           </div>
           <button type="button" class="btn btn-sm btn-secondary" id="btn-open-auth-modal" style="padding:0.2rem 0.5rem; font-size:0.75rem; margin-left:0.25rem;">
-            🔐 Perfil
+            🔐 Entrar
           </button>
         </div>
 
@@ -586,6 +586,9 @@
         <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:1rem;">
           O Sistema da Locar opera com controle de acesso rigoroso por papéis de responsabilidade técnica e operacional.
         </p>
+
+        <!-- AVISO CONTEXTUAL DE AÇÃO QUE EXIGE LOGIN -->
+        <div id="auth-action-notice" style="display:none; margin-bottom:1rem;"></div>
 
         <!-- SELEÇÃO RÁPIDA DE PERFIS HOMOLOGADOS EM CAMPO -->
         <div style="margin-bottom:1.25rem;">

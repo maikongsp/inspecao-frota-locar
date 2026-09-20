@@ -69,7 +69,9 @@ const DEFAULT_USERS = [
 
 export class AuthManager {
   constructor() {
-    this.currentUser = this.loadSession();
+    // O sistema abre sempre sem indicação de perfil (Modo Consulta Livre).
+    // O login de perfil é obrigatório apenas ao executar ações operacionais.
+    this.currentUser = null;
   }
 
   getRegisteredUsers() {
@@ -84,18 +86,8 @@ export class AuthManager {
   }
 
   loadSession() {
-    try {
-      const raw = localStorage.getItem(AUTH_STORAGE_KEY);
-      if (raw) {
-        return JSON.parse(raw);
-      }
-    } catch (e) {
-      console.warn('Erro ao restaurar sessão de autenticação:', e);
-    }
-    // Sessão padrão inicial para garantir disponibilidade imediata em campo
-    const defaultUser = DEFAULT_USERS[0];
-    this.saveSession(defaultUser);
-    return defaultUser;
+    // Retorna null na inicialização para garantir modo de consulta livre sem perfil pré-definido
+    return null;
   }
 
   saveSession(user) {
@@ -174,9 +166,6 @@ export class AuthManager {
   }
 
   getCurrentUser() {
-    if (!this.currentUser) {
-      this.currentUser = this.loadSession();
-    }
     return this.currentUser;
   }
 
