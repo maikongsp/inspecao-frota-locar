@@ -11,7 +11,7 @@ import urllib.error
 # Carrega configurações
 import os
 
-ENDPOINT = os.getenv("APPWRITE_ENDPOINT", "https://cloud.appwrite.io/v1")
+ENDPOINT = os.getenv("APPWRITE_ENDPOINT", "https://nyc.cloud.appwrite.io/v1")
 PROJECT_ID = os.getenv("APPWRITE_PROJECT_ID", "")
 API_KEY = os.getenv("APPWRITE_API_KEY", "")
 DATABASE_ID = os.getenv("APPWRITE_DATABASE_ID", "locar_betim_db")
@@ -19,6 +19,7 @@ DATABASE_ID = os.getenv("APPWRITE_DATABASE_ID", "locar_betim_db")
 def make_request(path, method="GET", payload=None):
     url = f"{ENDPOINT}{path}"
     headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
         "X-Appwrite-Project": PROJECT_ID,
         "X-Appwrite-Key": API_KEY,
         "Content-Type": "application/json"
@@ -50,7 +51,7 @@ def setup():
         return
 
     print(f"\n=======================================================")
-    print(f"🚀 Iniciando Provisionamento Automático no Appwrite Cloud")
+    print(f">> Iniciando Provisionamento Automatico no Appwrite Cloud")
     print(f"Projeto: {PROJECT_ID}")
     print(f"Banco de Dados Alvo: {DATABASE_ID}")
     print(f"=======================================================\n")
@@ -110,9 +111,9 @@ def setup():
             payload["size"] = size
         r = make_request(endpoint, "POST", payload)
         if r and r.get("conflict"):
-            print(f"      • Atributo '{key}' já existe.")
+            print(f"      - Atributo '{key}' ja existe.")
         elif r:
-            print(f"      ✓ Atributo '{key}' criado.")
+            print(f"      [OK] Atributo '{key}' criado.")
 
     # 3. Coleção 2: pcm_service_requests
     print("\n3. Criando Coleção 'pcm_service_requests'...")
@@ -150,12 +151,12 @@ def setup():
             payload["size"] = size
         r = make_request(endpoint, "POST", payload)
         if r and r.get("conflict"):
-            print(f"      • Atributo '{key}' já existe.")
+            print(f"      - Atributo '{key}' ja existe.")
         elif r:
-            print(f"      ✓ Atributo '{key}' criado.")
+            print(f"      [OK] Atributo '{key}' criado.")
 
-    print("\n🎉 Provisionamento concluído com sucesso!")
-    print("Agora seu banco de dados no Appwrite está 100% pronto para produção.")
+    print("\n[SUCESSO] Provisionamento concluido com exito!")
+    print("Agora seu banco de dados no Appwrite esta 100% pronto para producao.")
 
 if __name__ == "__main__":
     if len(sys.argv) >= 3:

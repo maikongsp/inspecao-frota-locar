@@ -9,9 +9,10 @@
 
 export class AppwriteClient {
     constructor() {
-        this.endpoint = window.LOCAR_CONFIG?.APPWRITE_ENDPOINT || localStorage.getItem('locar_appwrite_endpoint') || 'https://cloud.appwrite.io/v1';
-        this.projectId = window.LOCAR_CONFIG?.APPWRITE_PROJECT_ID || localStorage.getItem('locar_appwrite_project_id') || '';
-        this.databaseId = window.LOCAR_CONFIG?.APPWRITE_DATABASE_ID || localStorage.getItem('locar_appwrite_database_id') || 'locar_betim_db';
+        // Configurações do Appwrite Cloud (Região Nova York / NYC onde o projeto foi provisionado)
+        this.endpoint = localStorage.getItem('locar_appwrite_endpoint') || 'https://nyc.cloud.appwrite.io/v1';
+        this.projectId = localStorage.getItem('locar_appwrite_project_id') || '6aaf35a1003b73ac8b04';
+        this.databaseId = localStorage.getItem('locar_appwrite_database_id') || 'locar_betim_db';
         this.collectionInspections = 'inspections';
         this.collectionPCM = 'pcm_service_requests';
         this.bucketPhotos = 'inspection_photos';

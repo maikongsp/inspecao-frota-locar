@@ -45,7 +45,7 @@ Siga este passo a passo de 2 minutos para configurar o backend gratuito no **App
   * `inspector_last_name` (size: 64)
   * `inspector_full_name` (size: 128)
   * `inspector_phone` (size: 32)
-  * `inspector_reg` (size: 64)
+  * `inspector_reg` (size: 64, opcional / cargo: "Inspetor Técnico Homologado")
   * `hourmeter` (tipo: **Float** ou Integer)
   * `final_status` (size: 32)
   * `verdict` (size: 255)
