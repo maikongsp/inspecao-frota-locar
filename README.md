@@ -44,6 +44,12 @@ Sistema industrial para inspeção técnica regulamentar, conformidade visual es
 * **Persistência Híbrida (Offline-First):** LocalStorage com conector para **Supabase (PostgreSQL)**.
 * **Deploy & Hospedagem:** **Vercel** com cabeçalhos de segurança HTTP e cache otimizado.
 
+## 🚀 Sistema em Produção (Online)
+
+* **Link Oficial:** 👉 **[https://inspecao-frota-locar.vercel.app/](https://inspecao-frota-locar.vercel.app/)**
+* **Banco de Dados em Nuvem:** Appwrite Cloud (Database: `locar_betim_db`)
+* **CMMS Oficial Integrado:** Engeman® - Software de Manutenção
+
 ---
 
 ## 📦 Como Executar Localmente
