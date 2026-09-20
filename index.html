@@ -40,6 +40,28 @@
       </div>
 
       <div class="header-actions">
+        <!-- Indicador de Usuário e Perfil Corporativo Ativo (RBAC) -->
+        <div class="user-session-badge" id="user-session-badge" style="display:flex; align-items:center; gap:0.6rem; background:var(--locar-chumbo-surface); padding:0.35rem 0.75rem; border-radius:var(--radius-md); border:1px solid var(--locar-chumbo-border); cursor:pointer;" title="Clique para gerenciar usuário e perfil de acesso">
+          <span style="font-size:1.15rem;" id="user-avatar-icon">👷</span>
+          <div style="display:flex; flex-direction:column; line-height:1.2;">
+            <span style="font-weight:700; font-size:0.8rem; color:#FFFFFF;" id="user-display-name">Carlos Mendes</span>
+            <span style="font-size:0.68rem; color:var(--locar-yellow); font-weight:600;" id="user-display-role">Inspetor Técnico</span>
+          </div>
+          <button type="button" class="btn btn-sm btn-secondary" id="btn-open-auth-modal" style="padding:0.2rem 0.5rem; font-size:0.75rem; margin-left:0.25rem;">
+            🔐 Perfil
+          </button>
+        </div>
+
+        <button type="button" class="btn btn-sm btn-secondary" id="btn-open-verify-modal" title="Conferir autenticidade de laudo pericial por Hash SHA-256 ou QR Code">
+          🔍 Validar Laudo
+        </button>
+
+        <!-- Indicador de Status e Sincronização do Appwrite Cloud -->
+        <div class="cloud-sync-badge" id="btn-trigger-cloud-sync" style="display:flex; align-items:center; gap:0.45rem; background:var(--locar-chumbo-surface); padding:0.35rem 0.65rem; border-radius:var(--radius-md); border:1px solid var(--locar-chumbo-border); cursor:pointer; font-size:0.75rem;" title="Clique para sincronizar vistorias pendentes com o Appwrite Cloud">
+          <span id="cloud-sync-dot" style="width:8px; height:8px; border-radius:50%; background:#10B981; display:inline-block;"></span>
+          <span id="cloud-sync-label" style="color:var(--text-secondary); font-weight:600;">Appwrite OK</span>
+        </div>
+
         <button type="button" class="btn btn-sm btn-secondary" id="btn-open-pcm-settings" title="Configurar e-mail do PCM">
           ⚙ Configurar PCM
         </button>
@@ -538,6 +560,120 @@
       </div>
       <div class="modal-body" id="eq-history-modal-content">
         <!-- Renderizado dinamicamente -->
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 8: AUTENTICAÇÃO CORPORATIVA & CONTROLE DE ACESSO (RBAC) -->
+  <div class="modal-backdrop" id="modal-auth-control">
+    <div class="modal-container" style="max-width:550px;">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:0.5rem;">
+          <span style="font-size:1.3rem;">🔐</span>
+          <h3 class="modal-title">Acesso Corporativo & Gestão de Perfis</h3>
+        </div>
+        <button type="button" class="btn-close-modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:1rem;">
+          O Sistema da Locar opera com controle de acesso rigoroso por papéis de responsabilidade técnica e operacional.
+        </p>
+
+        <!-- SELEÇÃO RÁPIDA DE PERFIS HOMOLOGADOS EM CAMPO -->
+        <div style="margin-bottom:1.25rem;">
+          <label style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; display:block; margin-bottom:0.5rem;">
+            Perfis Corporativos Homologados:
+          </label>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;" id="quick-role-buttons">
+            <button type="button" class="btn btn-secondary btn-quick-role" data-role="inspector" style="justify-content:flex-start; text-align:left; padding:0.6rem 0.75rem;">
+              <span style="font-size:1.2rem; margin-right:0.4rem;">👷</span>
+              <div>
+                <strong style="display:block; font-size:0.82rem; color:#FFFFFF;">Inspetor de Campo</strong>
+                <span style="font-size:0.68rem; color:var(--text-muted);">Vistorias & Assinatura</span>
+              </div>
+            </button>
+            <button type="button" class="btn btn-secondary btn-quick-role" data-role="pcm" style="justify-content:flex-start; text-align:left; padding:0.6rem 0.75rem;">
+              <span style="font-size:1.2rem; margin-right:0.4rem;">⚙️</span>
+              <div>
+                <strong style="display:block; font-size:0.82rem; color:#FFFFFF;">Gestor PCM</strong>
+                <span style="font-size:0.68rem; color:var(--text-muted);">Ordens de Serviço</span>
+              </div>
+            </button>
+            <button type="button" class="btn btn-secondary btn-quick-role" data-role="manager" style="justify-content:flex-start; text-align:left; padding:0.6rem 0.75rem;">
+              <span style="font-size:1.2rem; margin-right:0.4rem;">📊</span>
+              <div>
+                <strong style="display:block; font-size:0.82rem; color:#FFFFFF;">Gerente de Frota</strong>
+                <span style="font-size:0.68rem; color:var(--text-muted);">Cadastros & Exportação</span>
+              </div>
+            </button>
+            <button type="button" class="btn btn-secondary btn-quick-role" data-role="admin" style="justify-content:flex-start; text-align:left; padding:0.6rem 0.75rem;">
+              <span style="font-size:1.2rem; margin-right:0.4rem;">🛡️</span>
+              <div>
+                <strong style="display:block; font-size:0.82rem; color:#FFFFFF;">Administrador</strong>
+                <span style="font-size:0.68rem; color:var(--text-muted);">Acesso Global</span>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- FORMULÁRIO DE LOGIN COM CREDENCIAIS -->
+        <form id="form-corporate-login" style="background:var(--locar-chumbo-surface); padding:1rem; border-radius:var(--radius-md); border:1px solid var(--locar-chumbo-border);">
+          <div style="margin-bottom:0.75rem;">
+            <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">
+              Matrícula ou E-mail Corporativo:
+            </label>
+            <input type="text" id="auth-input-identifier" class="search-input" placeholder="Ex: LOC-7842 ou inspetor.betim@locar.com.br" required style="border-radius:var(--radius-md);" />
+          </div>
+          <div style="margin-bottom:0.75rem;">
+            <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">
+              PIN de Segurança ou Senha:
+            </label>
+            <input type="password" id="auth-input-pin" class="search-input" placeholder="PIN de 4 dígitos" maxlength="8" required style="border-radius:var(--radius-md);" />
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">
+            🔓 Entrar / Autenticar Operador
+          </button>
+        </form>
+
+        <div id="auth-current-permissions-box" style="margin-top:1rem; font-size:0.78rem; color:var(--text-secondary); background:rgba(0,0,0,0.25); padding:0.75rem; border-radius:var(--radius-md);">
+          <!-- Permissões do usuário atual preenchidas via JS -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-close-modal">Fechar</button>
+        <button type="button" class="btn btn-danger" id="btn-auth-logout">Encerrar Sessão</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 9: VALIDAÇÃO FORENSE DE LAUDO & QR CODE -->
+  <div class="modal-backdrop" id="modal-verify-certificate">
+    <div class="modal-container" style="max-width:580px;">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:0.5rem;">
+          <span style="font-size:1.3rem;">🛡️</span>
+          <h3 class="modal-title">Validação Pericial & Custódia de Laudo</h3>
+        </div>
+        <button type="button" class="btn-close-modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:1rem;">
+          Ferramenta pericial para auditoria externa, fiscalização do Ministério do Trabalho e conformidade NR-11 / NR-12.
+        </p>
+
+        <div style="display:flex; gap:0.5rem; margin-bottom:1.25rem;">
+          <input type="text" id="input-verify-search" class="search-input" placeholder="Insira o Nº do Laudo (ex: INSP-LOC-...) ou Hash" style="border-radius:var(--radius-md); flex:1;" />
+          <button type="button" class="btn btn-primary" id="btn-execute-verification">
+            Conferir
+          </button>
+        </div>
+
+        <div id="verification-result-container">
+          <!-- Renderizado dinamicamente com o status forense -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-close-modal">Fechar</button>
       </div>
     </div>
   </div>

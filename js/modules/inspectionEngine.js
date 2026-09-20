@@ -6,6 +6,8 @@
 
 import { CHECKLIST_NORMS } from '../data/checklistNorms.js';
 import { Storage } from '../storage.js';
+import { generateAuditHash } from '../utils.js';
+import { authManager } from './auth.js';
 
 export const InspectionEngine = {
   currentInspection: null,
@@ -207,11 +209,12 @@ export const InspectionEngine = {
    * Finaliza a inspeção com validação estrita anti-liberação indevida:
    * - Exige que 100% dos itens normativos tenham sido respondidos.
    * - Exige assinatura digital válida do inspetor.
+   * - Gera Hash Criptográfico SHA-256 para validade jurídica e forense.
    * - Se houver QUALQUER não conformidade: Bloqueia a máquina, retém em MANUTENÇÃO
    *   e gera Solicitação de Serviço ao PCM.
    * - Se 100% conforme: Libera para DISPONÍVEL e encerra S.S. anterior se houver.
    */
-  finishInspection(technicalOpinion = '', signature = null, aiExpertAppraisal = null) {
+  async finishInspection(technicalOpinion = '', signature = null, aiExpertAppraisal = null) {
     if (!this.currentInspection) {
       throw new Error('Nenhuma inspeção ativa para ser finalizada.');
     }
@@ -304,6 +307,25 @@ export const InspectionEngine = {
         console.warn('Aviso ao sincronizar S.S. anterior:', errSS);
       }
     }
+
+    // 4. GERAÇÃO DE HASH CRIPTOGRÁFICO FORENSE SHA-256 DE NÃO-ADULTERAÇÃO
+    const payloadToHash = {
+      id: this.currentInspection.id,
+      equipmentTag: this.currentInspection.equipmentTag,
+      equipmentName: this.currentInspection.equipmentName,
+      inspector: this.currentInspection.inspectorName,
+      inspectorPhone: this.currentInspection.inspectorPhone,
+      authenticatedUser: authManager.getCurrentUser()?.email || 'inspetor.betim@locar.com.br',
+      hourmeter: this.currentInspection.hourmeter,
+      finalStatus: this.currentInspection.finalStatus,
+      totalNonConformities: this.currentInspection.totalNonConformities,
+      finishedAt: this.currentInspection.finishedAt
+    };
+    this.currentInspection.cryptoHash = await generateAuditHash(payloadToHash);
+    this.currentInspection.qrCodeHash = this.currentInspection.cryptoHash.substring(0, 24).toUpperCase();
+    this.currentInspection.certifiedBy = authManager.getCurrentUser()?.name || this.currentInspection.inspectorName;
+
+    authManager.logAudit('EMISSAO_LAUDO', `Laudo ${this.currentInspection.id} emitido com veredicto: ${this.currentInspection.finalStatus} (Hash: ${this.currentInspection.qrCodeHash})`);
 
     // Persiste inspeção no histórico permanente
     Storage.saveInspection(this.currentInspection);

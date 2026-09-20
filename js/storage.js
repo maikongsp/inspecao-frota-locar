@@ -122,14 +122,22 @@ export const Storage = {
     try {
       localStorage.setItem(STORAGE_KEYS.INSPECTIONS, JSON.stringify(history));
     } catch (e) {
-      console.warn('Cota excedida, otimizando fotos antigas:', e);
+      console.warn('Cota excedida no localStorage, otimizando fotos de vistorias antigas:', e);
       const reducedHistory = history.map((item, idx) => {
-        if (idx > 3 && item.photos) {
-          return { ...item, photos: {} };
+        if (idx > 4 && item.answers) {
+          const cleanedAnswers = {};
+          for (const [k, v] of Object.entries(item.answers)) {
+            cleanedAnswers[k] = v && v.photo ? { ...v, photo: null } : v;
+          }
+          return { ...item, answers: cleanedAnswers };
         }
         return item;
       });
-      localStorage.setItem(STORAGE_KEYS.INSPECTIONS, JSON.stringify(reducedHistory));
+      try {
+        localStorage.setItem(STORAGE_KEYS.INSPECTIONS, JSON.stringify(reducedHistory));
+      } catch (errRetry) {
+        console.error('Falha crítica de armazenamento local:', errRetry);
+      }
     }
     return inspection;
   },

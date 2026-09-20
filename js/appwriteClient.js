@@ -1,11 +1,17 @@
 /**
- * CLIENTE APPWRITE CLOUD ENTERPRISE COM SUPORTE OFFLINE-FIRST
- * Locar Guindastes e Transportes Intermodais
+ * CLIENTE APPWRITE CLOUD ENTERPRISE COM SUPORTE OFFLINE-FIRST E FILA AUTOMÁTICA DE SINCRONIZAÇÃO
+ * Locar Guindastes e Transportes Intermodais (Filial Betim / MG)
  * 
- * Totalmente integrado com a nuvem Appwrite:
- * - Se configurado (PROJECT_ID e DATABASE_ID), sincroniza laudos, inspeções e S.S. em tempo real.
- * - Se offline ou sem credenciais, opera em modo 100% resiliente via LocalStorage no pátio.
+ * Funcionalidades:
+ * 1. Sincronização em tempo real de laudos, vistorias e solicitações ao PCM no Appwrite Cloud.
+ * 2. Operação 100% resiliente em modo Offline no pátio (sem sinal de rede).
+ * 3. Fila de contingência (Sync Queue) com auto-envio assim que a conexão for restabelecida.
  */
+
+const QUEUE_KEYS = {
+    INSPECTIONS: 'locar_appwrite_queue_inspections_v1',
+    PCM: 'locar_appwrite_queue_pcm_v1'
+};
 
 export class AppwriteClient {
     constructor() {
@@ -18,12 +24,27 @@ export class AppwriteClient {
         this.bucketPhotos = 'inspection_photos';
 
         this.isCloudEnabled = Boolean(this.endpoint && this.projectId);
+
+        // Auto-sincronização quando o dispositivo recuperar sinal de internet (Wi-Fi / 4G)
+        if (typeof window !== 'undefined') {
+            window.addEventListener('online', () => {
+                console.log('[Appwrite] Conexão restabelecida! Iniciando sincronização da fila offline no pátio...');
+                this.flushSyncQueue();
+            });
+
+            // Se iniciar com internet, verifica pendências em segundo plano
+            setTimeout(() => {
+                if (navigator.onLine && this.isCloudEnabled) {
+                    this.flushSyncQueue();
+                }
+            }, 3000);
+        }
     }
 
     /**
      * Configura as credenciais do Appwrite Cloud
      */
-    configure(projectId, databaseId = 'locar_betim_db', endpoint = 'https://cloud.appwrite.io/v1') {
+    configure(projectId, databaseId = 'locar_betim_db', endpoint = 'https://nyc.cloud.appwrite.io/v1') {
         this.endpoint = endpoint;
         this.projectId = projectId;
         this.databaseId = databaseId;
@@ -35,15 +56,119 @@ export class AppwriteClient {
         this.isCloudEnabled = Boolean(endpoint && projectId);
     }
 
+    // --- GESTÃO DA FILA DE CONTINGÊNCIA OFFLINE ---
+    getPendingInspections() {
+        try {
+            return JSON.parse(localStorage.getItem(QUEUE_KEYS.INSPECTIONS) || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    getPendingPCMRequests() {
+        try {
+            return JSON.parse(localStorage.getItem(QUEUE_KEYS.PCM) || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    getPendingCount() {
+        return this.getPendingInspections().length + this.getPendingPCMRequests().length;
+    }
+
+    enqueuePendingInspection(inspectionData) {
+        const queue = this.getPendingInspections();
+        if (!queue.some(item => item.id === inspectionData.id)) {
+            queue.push(inspectionData);
+            try {
+                localStorage.setItem(QUEUE_KEYS.INSPECTIONS, JSON.stringify(queue));
+                console.log('[Appwrite] Inspeção arquivada na fila offline para envio posterior:', inspectionData.id);
+            } catch (e) {
+                console.warn('Erro ao enfileirar inspeção offline:', e);
+            }
+        }
+    }
+
+    enqueuePendingPCMRequest(pcmRequest) {
+        const queue = this.getPendingPCMRequests();
+        if (!queue.some(item => item.id === pcmRequest.id)) {
+            queue.push(pcmRequest);
+            try {
+                localStorage.setItem(QUEUE_KEYS.PCM, JSON.stringify(queue));
+                console.log('[Appwrite] S.S. PCM arquivada na fila offline para envio posterior:', pcmRequest.id);
+            } catch (e) {
+                console.warn('Erro ao enfileirar S.S. offline:', e);
+            }
+        }
+    }
+
+    /**
+     * Descarrega toda a fila de pendências para o Appwrite Cloud
+     */
+    async flushSyncQueue() {
+        if (!this.isCloudEnabled || !navigator.onLine) {
+            return { synced: 0, remaining: this.getPendingCount() };
+        }
+
+        let syncedCount = 0;
+        const pendingInspections = this.getPendingInspections();
+        const remainingInspections = [];
+
+        for (const insp of pendingInspections) {
+            const res = await this._postInspection(insp);
+            if (res.success || res.status === 409) {
+                syncedCount++;
+            } else {
+                remainingInspections.push(insp);
+            }
+        }
+        localStorage.setItem(QUEUE_KEYS.INSPECTIONS, JSON.stringify(remainingInspections));
+
+        const pendingPCM = this.getPendingPCMRequests();
+        const remainingPCM = [];
+        for (const ss of pendingPCM) {
+            const res = await this._postPCMRequest(ss);
+            if (res.success || res.status === 409) {
+                syncedCount++;
+            } else {
+                remainingPCM.push(ss);
+            }
+        }
+        localStorage.setItem(QUEUE_KEYS.PCM, JSON.stringify(remainingPCM));
+
+        if (syncedCount > 0) {
+            console.log(`[Appwrite] Sincronização concluída! ${syncedCount} registro(s) transmitidos à nuvem.`);
+            if (typeof window !== 'undefined' && window.dispatchEvent) {
+                window.dispatchEvent(new CustomEvent('locar-cloud-synced', { detail: { synced: syncedCount } }));
+            }
+        }
+
+        return { synced: syncedCount, remaining: this.getPendingCount() };
+    }
+
     /**
      * Sincroniza inspeção com a coleção de documentos do Appwrite
      */
     async syncInspection(inspectionData) {
         if (!this.isCloudEnabled || !navigator.onLine) {
-            console.log('[Appwrite] Modo Offline / Armazenamento Local ativo para inspeção:', inspectionData.id);
-            return { success: true, mode: 'local' };
+            this.enqueuePendingInspection(inspectionData);
+            return { success: true, mode: 'local_queued' };
         }
 
+        const res = await this._postInspection(inspectionData);
+        if (!res.success && res.status !== 409) {
+            this.enqueuePendingInspection(inspectionData);
+            return { success: false, mode: 'local_queued_fallback' };
+        }
+
+        return { success: true, mode: 'cloud' };
+    }
+
+    /**
+     * Requisição interna de post de inspeção
+     */
+    async _postInspection(inspectionData) {
         try {
             const documentId = 'insp_' + inspectionData.id.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 32);
             const url = `${this.endpoint}/databases/${this.databaseId}/collections/${this.collectionInspections}/documents`;
@@ -66,6 +191,7 @@ export class AppwriteClient {
                     total_non_conformities: inspectionData.totalNonConformities || 0,
                     technical_opinion: inspectionData.technicalOpinion || '',
                     ai_expert_appraisal: inspectionData.aiExpertAppraisal || '',
+                    crypto_hash: inspectionData.cryptoHash || inspectionData.qrCodeHash || '',
                     started_at: inspectionData.startedAt,
                     finished_at: inspectionData.finishedAt || new Date().toISOString()
                 }
@@ -82,15 +208,12 @@ export class AppwriteClient {
 
             if (response.ok) {
                 console.log('[Appwrite] Inspeção sincronizada com sucesso no Appwrite Cloud!');
-                return { success: true, mode: 'cloud' };
+                return { success: true, status: 200 };
             } else {
-                const errData = await response.json();
-                console.warn('[Appwrite] Falha na sincronização cloud (mantido local):', errData.message);
-                return { success: false, mode: 'local_fallback', error: errData.message };
+                return { success: false, status: response.status };
             }
         } catch (err) {
-            console.error('[Appwrite] Erro de rede ou conexão:', err);
-            return { success: false, mode: 'local_fallback' };
+            return { success: false, status: 0, error: err };
         }
     }
 
@@ -99,9 +222,23 @@ export class AppwriteClient {
      */
     async syncPCMRequest(pcmRequest) {
         if (!this.isCloudEnabled || !navigator.onLine) {
-            return { success: true, mode: 'local' };
+            this.enqueuePendingPCMRequest(pcmRequest);
+            return { success: true, mode: 'local_queued' };
         }
 
+        const res = await this._postPCMRequest(pcmRequest);
+        if (!res.success && res.status !== 409) {
+            this.enqueuePendingPCMRequest(pcmRequest);
+            return { success: false, mode: 'local_queued_fallback' };
+        }
+
+        return { success: true, mode: 'cloud' };
+    }
+
+    /**
+     * Requisição interna de post de SS PCM
+     */
+    async _postPCMRequest(pcmRequest) {
         try {
             const documentId = 'ss_' + pcmRequest.id.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 32);
             const url = `${this.endpoint}/databases/${this.databaseId}/collections/${this.collectionPCM}/documents`;
@@ -131,9 +268,13 @@ export class AppwriteClient {
                 body: JSON.stringify(payload)
             });
 
-            return { success: response.ok, mode: response.ok ? 'cloud' : 'local_fallback' };
+            if (response.ok) {
+                return { success: true, status: 200 };
+            } else {
+                return { success: false, status: response.status };
+            }
         } catch (err) {
-            return { success: false, mode: 'local_fallback' };
+            return { success: false, status: 0, error: err };
         }
     }
 }

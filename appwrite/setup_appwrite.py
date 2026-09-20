@@ -99,6 +99,7 @@ def setup():
         ("integer", "total_non_conformities", None, False),
         ("string", "technical_opinion", 2000, False),
         ("string", "ai_expert_appraisal", 3000, False),
+        ("string", "crypto_hash", 128, False),
         ("string", "started_at", 64, False),
         ("string", "finished_at", 64, False)
     ]

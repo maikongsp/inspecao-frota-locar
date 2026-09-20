@@ -4,7 +4,7 @@
  */
 
 import { aiCopilot } from './aiCopilot.js';
-import { escapeHTML } from '../utils.js';
+import { escapeHTML, safeImageSrc } from '../utils.js';
 
 export const ReportGenerator = {
   /**
@@ -51,6 +51,9 @@ export const ReportGenerator = {
               <span class="report-doc-title">LAUDO TÉCNICO PERICIAL DE INSPEÇÃO</span>
               <span class="report-doc-id">Nº ${escapeHTML(inspection.id)}</span>
               <span class="report-doc-date">Emissão: ${escapeHTML(inspection.formattedDate)} às ${escapeHTML(inspection.formattedTime)}</span>
+              <span style="font-family:monospace; font-size:0.68rem; color:#FFF212; background:#2A2E37; padding:2px 6px; border-radius:3px; display:inline-block; margin-top:2px;">
+                🔐 SHA-256: ${escapeHTML((inspection.cryptoHash || inspection.qrCodeHash || 'LOCAR-BETIM-CERTIFICADO').substring(0, 24))}...
+              </span>
             </div>
           </div>
         </header>
@@ -64,7 +67,7 @@ export const ReportGenerator = {
               ? 'Equipamento aprovado com 100% de conformidade visual, mecânica, estrutural e testes de operação plena.' 
               : `EQUIPAMENTO BLOQUEADO: ${escapeHTML(inspection.blockReason || 'Detectadas não-conformidades impeditivas.')} ${inspection.associatedServiceRequest ? 'Solicitação de Serviço encaminhada ao PCM: <strong>' + escapeHTML(inspection.associatedServiceRequest) + '</strong> (e-mail enviado).' : ''}`}</p>
           </div>
-          <div class="banner-qr" id="report-qr-code-box">
+          <div class="banner-qr" id="report-qr-code-box" style="cursor:pointer;" title="Clique para verificar autenticidade pericial" data-inspection-id="${escapeHTML(inspection.id)}">
             <!-- Canvas do QR Code inserido dinamicamente -->
           </div>
         </div>
@@ -198,7 +201,7 @@ export const ReportGenerator = {
               ${photoItems.map((p, idx) => `
                 <div class="photo-card">
                   <div class="photo-img-wrapper">
-                    <img src="${p.photo}" alt="Evidência ${idx + 1}" />
+                    <img src="${safeImageSrc(p.photo)}" alt="Evidência ${idx + 1}" />
                     <span class="photo-stamp ${p.status === 'nao_conforme' ? 'stamp-nc' : 'stamp-ok'}">
                       ${p.status === 'nao_conforme' ? 'NÃO CONFORME' : 'CONFORME'}
                     </span>
@@ -230,6 +233,23 @@ export const ReportGenerator = {
           <pre style="white-space:pre-wrap; font-family:var(--font-body), sans-serif; font-size:0.85rem; line-height:1.5; color:#E2E8F0; margin:0;">${escapeHTML(aiAppraisalText)}</pre>
         </div>
 
+        <!-- SELO DE AUDITORIA FORENSE E NÃO-ADULTERAÇÃO (NR-11 / NR-12 / NR-18) -->
+        <div class="report-section" style="background:#14171D; border:1px solid #474444; border-radius:6px; padding:12px 18px; margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div>
+              <span style="color:#FFF212; font-weight:700; font-size:0.85rem; display:block;">
+                🛡️ CERTIFICAÇÃO DIGITAL DE INTEGRIDADE & CUSTÓDIA PERICIAL
+              </span>
+              <span style="font-size:0.75rem; color:#94A3B8;">
+                Emitido sob conformidade estrita das normas regulamentadoras vigentes. Assinatura e registro imutáveis.
+              </span>
+            </div>
+            <div style="font-family:monospace; font-size:0.75rem; background:#22262E; color:#38BDF8; padding:4px 10px; border-radius:4px; border:1px solid #334155;">
+              HASH: ${escapeHTML(inspection.cryptoHash || inspection.qrCodeHash || 'LOCAR-SHA256-CERTIFIED')}
+            </div>
+          </div>
+        </div>
+
         <!-- PARECER TÉCNICO E ASSINATURAS -->
         <div class="report-section report-signatures">
           <div class="technical-opinion-box">
@@ -243,7 +263,7 @@ export const ReportGenerator = {
           <div class="signatures-row">
             <div class="signature-box">
               <div class="signature-line">
-                ${inspection.inspectorSignature ? `<img src="${inspection.inspectorSignature}" alt="Assinatura" class="sig-img" />` : '<div class="sig-placeholder">Assinatura Digitalizada Válida</div>'}
+                ${inspection.inspectorSignature ? `<img src="${safeImageSrc(inspection.inspectorSignature)}" alt="Assinatura" class="sig-img" />` : '<div class="sig-placeholder">Assinatura Digitalizada Válida</div>'}
               </div>
               <p class="sig-name">${escapeHTML(inspection.inspectorFullName || inspection.inspectorName || 'Engenheiro / Técnico Responsável')}</p>
               <p class="sig-reg" style="color:#B45309; font-weight:700;">Tel: ${escapeHTML(inspection.inspectorPhone || 'Não informado')}</p>

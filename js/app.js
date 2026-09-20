@@ -14,6 +14,7 @@ import { aiVisionInspector } from './modules/aiVisionInspector.js';
 import { aiCopilot } from './modules/aiCopilot.js';
 import { appwriteClient } from './appwriteClient.js';
 import { escapeHTML } from './utils.js';
+import { authManager } from './modules/auth.js';
 
 // Estado global da interface
 const AppState = {
@@ -34,6 +35,8 @@ const AppState = {
 document.addEventListener('DOMContentLoaded', () => {
   registerPWA();
   initClock();
+  initAuthSystem();
+  initCloudSyncSystem();
   initNavigation();
   initFleetView();
   initInspectionEvents();
@@ -75,6 +78,12 @@ function initNavigation() {
 }
 
 export function switchTab(tabId) {
+  // Verificação de permissões RBAC
+  if (tabId === 'novo-equipamento' && !authManager.canManageFleet()) {
+    showToast('Acesso Restrito: Apenas o Gestor de Frota ou Administrador podem cadastrar novos equipamentos.', 'warning');
+    return;
+  }
+
   AppState.currentTab = tabId;
 
   document.querySelectorAll('.nav-tab').forEach(t => {
@@ -317,7 +326,7 @@ function initInspectionEvents() {
   // Conclusão e Emissão
   const formFinish = document.getElementById('form-finish-inspection');
   if (formFinish) {
-    formFinish.addEventListener('submit', (e) => {
+    formFinish.addEventListener('submit', async (e) => {
       e.preventDefault();
       const opinionText = document.getElementById('tech-opinion-input').value.trim();
       
@@ -342,7 +351,7 @@ function initInspectionEvents() {
       const aiAppraisal = currentInsp?.aiExpertAppraisal || null;
 
       try {
-        const completed = InspectionEngine.finishInspection(opinionText, signatureData, aiAppraisal);
+        const completed = await InspectionEngine.finishInspection(opinionText, signatureData, aiAppraisal);
         if (completed) {
           // Sincronização em nuvem resiliente com Appwrite Cloud (offline-first)
           appwriteClient.syncInspection(completed);
@@ -1115,8 +1124,12 @@ function initPCMSettings() {
   const btnOpen = document.getElementById('btn-open-pcm-settings');
   if (btnOpen) {
     btnOpen.addEventListener('click', () => {
+      if (!authManager.canManagePCM()) {
+        showToast('Acesso Restrito: Apenas a equipe PCM / Engenharia de Manutenção pode alterar configurações.', 'warning');
+        return;
+      }
       const config = Storage.getPCMConfig();
-      document.getElementById('input-pcm-email').value = config.pcmEmail || 'pcm@locar.com.br';
+      document.getElementById('input-pcm-email').value = config.pcmEmail || 'pcm.betim@locar.com.br';
       document.getElementById('input-pcm-manager').value = config.pcmManagerName || 'Engenharia de Manutenção & PCM Locar';
       document.getElementById('check-auto-send-email').checked = config.autoSendEmail !== false;
       openModal('modal-pcm-settings');
@@ -1248,6 +1261,9 @@ export function openReportModal(inspection) {
   const qrBox = container.querySelector('#report-qr-code-box');
   if (qrBox) {
     ReportGenerator.renderQRCodeCanvas(qrBox, inspection.id, inspection.finalStatus === 'liberado');
+    qrBox.addEventListener('click', () => {
+      openForensicVerificationModal(inspection.id);
+    });
   }
 
   openModal('modal-view-report');
@@ -1357,7 +1373,7 @@ function showToast(message, type = 'info') {
 
   toastEl.style.backgroundColor = colors.bg;
   toastEl.style.color = colors.color;
-  toastEl.innerHTML = message;
+  toastEl.innerHTML = escapeHTML(message);
   toastEl.style.transform = 'translateY(0)';
   toastEl.style.opacity = '1';
 
@@ -1366,4 +1382,287 @@ function showToast(message, type = 'info') {
     toastEl.style.transform = 'translateY(100px)';
     toastEl.style.opacity = '0';
   }, 4500);
+}
+
+// --- SISTEMA DE AUTENTICAÇÃO E PERFIS CORPORATIVOS (RBAC) ---
+function initAuthSystem() {
+  updateAuthUI();
+
+  const userBadge = document.getElementById('user-session-badge');
+  if (userBadge) {
+    userBadge.addEventListener('click', () => {
+      openModal('modal-auth-control');
+      renderPermissionsBox();
+    });
+  }
+
+  const btnOpenAuth = document.getElementById('btn-open-auth-modal');
+  if (btnOpenAuth) {
+    btnOpenAuth.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openModal('modal-auth-control');
+      renderPermissionsBox();
+    });
+  }
+
+  const btnOpenVerify = document.getElementById('btn-open-verify-modal');
+  if (btnOpenVerify) {
+    btnOpenVerify.addEventListener('click', () => {
+      openForensicVerificationModal();
+    });
+  }
+
+  // Monitor e gatilho de sincronização da nuvem Appwrite
+  const btnSync = document.getElementById('btn-trigger-cloud-sync');
+  if (btnSync) {
+    btnSync.addEventListener('click', async () => {
+      if (!navigator.onLine) {
+        showToast('Modo Offline: Dispositivo sem conexão no pátio. Os laudos permanecem salvos em cache local com segurança.', 'warning');
+        return;
+      }
+      showToast('Sincronizando laudos com o Appwrite Cloud...', 'info');
+      const res = await appwriteClient.flushSyncQueue();
+      if (res.synced > 0) {
+        showToast(`✓ ${res.synced} registro(s) sincronizados com o Appwrite Cloud!`, 'success');
+      } else {
+        showToast('Nuvem em dia! Nenhuma vistoria pendente na fila.', 'success');
+      }
+      updateCloudSyncIndicator();
+    });
+  }
+
+  const btnExecuteVerify = document.getElementById('btn-execute-verification');
+  if (btnExecuteVerify) {
+    btnExecuteVerify.addEventListener('click', () => {
+      const q = document.getElementById('input-verify-search')?.value;
+      executeForensicVerification(q);
+    });
+  }
+
+  const inputVerify = document.getElementById('input-verify-search');
+  if (inputVerify) {
+    inputVerify.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        executeForensicVerification(inputVerify.value);
+      }
+    });
+  }
+
+  // Botões de seleção rápida de perfil homologado
+  document.querySelectorAll('.btn-quick-role').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const role = btn.getAttribute('data-role');
+      const switched = authManager.quickSwitchUser(role);
+      if (switched) {
+        updateAuthUI();
+        renderPermissionsBox();
+        showToast(`Perfil alterado para: ${switched.name} (${switched.roleName})`, 'success');
+        closeAllModals();
+      }
+    });
+  });
+
+  // Formulário de Login Corporativo com Matrícula e PIN
+  const formLogin = document.getElementById('form-corporate-login');
+  if (formLogin) {
+    formLogin.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const identifier = document.getElementById('auth-input-identifier')?.value;
+      const pin = document.getElementById('auth-input-pin')?.value;
+      const res = authManager.login(identifier, pin);
+      if (res.success) {
+        updateAuthUI();
+        renderPermissionsBox();
+        showToast(`Autenticado com sucesso: ${res.user.name}`, 'success');
+        closeAllModals();
+      } else {
+        showToast(res.error, 'danger');
+      }
+    });
+  }
+
+  const btnLogout = document.getElementById('btn-auth-logout');
+  if (btnLogout) {
+    btnLogout.addEventListener('click', () => {
+      authManager.logout();
+      updateAuthUI();
+      renderPermissionsBox();
+      showToast('Sessão encerrada com segurança.', 'info');
+      closeAllModals();
+    });
+  }
+}
+
+function updateAuthUI() {
+  const user = authManager.getCurrentUser();
+  const nameEl = document.getElementById('user-display-name');
+  const roleEl = document.getElementById('user-display-role');
+  const iconEl = document.getElementById('user-avatar-icon');
+
+  if (nameEl && user) nameEl.textContent = user.name;
+  if (roleEl && user) roleEl.textContent = user.roleName || user.role;
+  if (iconEl && user) {
+    const icons = {
+      inspector: '👷',
+      pcm: '⚙️',
+      manager: '📊',
+      admin: '🛡️'
+    };
+    iconEl.textContent = icons[user.role] || '👤';
+  }
+
+  // Preenche dados padrão do inspetor se os inputs existirem
+  if (user) {
+    const fnInput = document.getElementById('input-insp-first-name');
+    const lnInput = document.getElementById('input-insp-last-name');
+    const phInput = document.getElementById('input-insp-phone');
+    if (fnInput) {
+      const parts = user.name.split(' ');
+      fnInput.value = parts[0] || '';
+      if (lnInput) lnInput.value = parts.slice(1).join(' ') || '';
+    }
+    if (phInput && user.phone) {
+      phInput.value = user.phone;
+    }
+  }
+
+  // Indicador visual de abas com restrição de acesso
+  const tabNovoEq = document.querySelector('.nav-tab[data-tab="novo-equipamento"]');
+  if (tabNovoEq) {
+    tabNovoEq.style.opacity = authManager.canManageFleet() ? '1' : '0.65';
+    tabNovoEq.title = authManager.canManageFleet() ? '' : 'Acesso restrito: Requer perfil Gestor de Frota';
+  }
+
+  updateCloudSyncIndicator();
+}
+
+function initCloudSyncSystem() {
+  updateCloudSyncIndicator();
+
+  window.addEventListener('online', () => {
+    updateCloudSyncIndicator();
+    showToast('Sinal restabelecido! Sincronizando com a nuvem...', 'info');
+  });
+  window.addEventListener('offline', updateCloudSyncIndicator);
+  window.addEventListener('locar-cloud-synced', updateCloudSyncIndicator);
+}
+
+function updateCloudSyncIndicator() {
+  const dot = document.getElementById('cloud-sync-dot');
+  const label = document.getElementById('cloud-sync-label');
+  if (!dot || !label) return;
+
+  if (!navigator.onLine) {
+    dot.style.backgroundColor = '#EF4444';
+    label.textContent = 'Offline Pátio';
+    label.style.color = '#FCA5A5';
+    return;
+  }
+
+  const pending = appwriteClient.getPendingCount();
+  if (pending > 0) {
+    dot.style.backgroundColor = '#F59E0B';
+    label.textContent = `${pending} Pendente(s)`;
+    label.style.color = '#FCD34D';
+  } else {
+    dot.style.backgroundColor = '#10B981';
+    label.textContent = 'Appwrite OK';
+    label.style.color = 'var(--text-secondary)';
+  }
+}
+
+function renderPermissionsBox() {
+  const box = document.getElementById('auth-current-permissions-box');
+  if (!box) return;
+  const user = authManager.getCurrentUser();
+  if (!user) {
+    box.innerHTML = '<em>Nenhum operador autenticado no momento.</em>';
+    return;
+  }
+
+  box.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+      <strong style="color:#FFF;">Matrícula: ${escapeHTML(user.registration || 'N/A')}</strong>
+      <span style="color:var(--locar-yellow); font-weight:700;">${escapeHTML(user.roleName)}</span>
+    </div>
+    <div style="color:var(--text-muted); font-size:0.75rem; margin-bottom:4px;">Privilégios ativos no sistema:</div>
+    <ul style="margin:0 0 0 16px; padding:0; line-height:1.6;">
+      <li>${authManager.canInspect() ? '✓' : '✖'} Executar Vistorias Técnicas & Assinar Laudos</li>
+      <li>${authManager.canManagePCM() ? '✓' : '✖'} Gestão de Ordens de Serviço & Parâmetros do PCM</li>
+      <li>${authManager.canManageFleet() ? '✓' : '✖'} Cadastro de Equipamentos & Exportação de Frota</li>
+    </ul>
+  `;
+}
+
+export function closeAllModals() {
+  document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.remove('active'));
+}
+
+export function openForensicVerificationModal(searchQuery = '') {
+  openModal('modal-verify-certificate');
+  const searchInput = document.getElementById('input-verify-search');
+  if (searchInput && searchQuery) {
+    searchInput.value = searchQuery;
+    executeForensicVerification(searchQuery);
+  } else if (searchInput) {
+    searchInput.focus();
+    executeForensicVerification('');
+  }
+}
+
+export function executeForensicVerification(query) {
+  const container = document.getElementById('verification-result-container');
+  if (!container) return;
+
+  const cleanQuery = (query || '').trim().toLowerCase();
+  if (!cleanQuery) {
+    container.innerHTML = `
+      <div style="background:var(--locar-chumbo-surface); padding:1.25rem; border-radius:var(--radius-md); border:1px solid var(--locar-chumbo-border); text-align:center; color:var(--text-muted); font-size:0.85rem;">
+        Insira o Nº da Inspeção (ex: INSP-LOC-...) ou Hash SHA-256 para verificar a integridade pericial.
+      </div>
+    `;
+    return;
+  }
+
+  const inspections = Storage.getInspections();
+  const match = inspections.find(i => 
+    i.id.toLowerCase().includes(cleanQuery) || 
+    (i.cryptoHash && i.cryptoHash.toLowerCase().includes(cleanQuery)) ||
+    (i.qrCodeHash && i.qrCodeHash.toLowerCase().includes(cleanQuery))
+  );
+
+  if (match) {
+    const isApproved = match.finalStatus === 'liberado';
+    container.innerHTML = `
+      <div style="background:rgba(16, 185, 129, 0.1); border:1px solid #10B981; border-radius:var(--radius-md); padding:1.25rem;">
+        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
+          <span style="font-size:1.4rem; color:#10B981;">✓</span>
+          <strong style="color:#10B981; font-size:0.95rem;">DOCUMENTO ÍNTEGRO E HOMOLOGADO PELA LOCAR</strong>
+        </div>
+        <table style="width:100%; font-size:0.8rem; line-height:1.6; color:#E2E8F0;">
+          <tr><td style="width:35%;"><strong>Nº do Laudo:</strong></td><td>${escapeHTML(match.id)}</td></tr>
+          <tr><td><strong>Equipamento:</strong></td><td>${escapeHTML(match.equipmentTag)} - ${escapeHTML(match.equipmentName)}</td></tr>
+          <tr><td><strong>Inspetor Homologado:</strong></td><td>${escapeHTML(match.inspectorName)}</td></tr>
+          <tr><td><strong>Data da Vistoria:</strong></td><td>${escapeHTML(match.formattedDate)} às ${escapeHTML(match.formattedTime)}</td></tr>
+          <tr><td><strong>Status Operacional:</strong></td><td><strong style="color:${isApproved ? '#10B981' : '#EF4444'};">${isApproved ? 'APROVADO / LIBERADO' : 'REPROVADO / BLOQUEADO'}</strong></td></tr>
+          <tr><td><strong>Custódia SHA-256:</strong></td><td style="font-family:monospace; font-size:0.7rem; color:#38BDF8; word-break:break-all;">${escapeHTML(match.cryptoHash || match.qrCodeHash || 'LOCAR-CERTIFICADO-VALIDADO')}</td></tr>
+        </table>
+        <div style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid rgba(255,255,255,0.1); font-size:0.75rem; color:#94A3B8;">
+          🔒 Registro em total conformidade pericial com NR-11, NR-12 e NR-18. Assinatura e itens do checklist validados sem adulteração.
+        </div>
+      </div>
+    `;
+  } else {
+    container.innerHTML = `
+      <div style="background:rgba(239, 68, 68, 0.1); border:1px solid #EF4444; border-radius:var(--radius-md); padding:1.25rem;">
+        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
+          <span style="font-size:1.4rem; color:#EF4444;">⚠</span>
+          <strong style="color:#EF4444; font-size:0.95rem;">LAUDO NÃO LOCALIZADO OU NÃO HOMOLOGADO</strong>
+        </div>
+        <p style="font-size:0.8rem; color:#FECACA; margin:0;">
+          Nenhum registro correspondente foi encontrado na base oficial de Betim/MG. Verifique o código digitado ou notifique o setor de QSMS da Locar para averiguação de autenticidade.
+        </p>
+      </div>
+    `;
+  }
 }

@@ -4,6 +4,7 @@
  */
 
 import { Storage } from '../storage.js';
+import { sanitizeCSV } from '../utils.js';
 
 export const FleetManager = {
   currentLimit: 24,
@@ -399,7 +400,7 @@ export const FleetManager = {
 
     const csvContent = '\uFEFF' + [
       headers.join(';'),
-      ...rows.map(r => r.map(field => `"${String(field).replace(/"/g, '""')}"`).join(';'))
+      ...rows.map(r => r.map(field => `"${sanitizeCSV(field)}"`).join(';'))
     ].join('\r\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });

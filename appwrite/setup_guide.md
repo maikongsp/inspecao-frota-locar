@@ -52,6 +52,7 @@ Siga este passo a passo de 2 minutos para configurar o backend gratuito no **App
   * `total_non_conformities` (tipo: **Integer**)
   * `technical_opinion` (size: 2000)
   * `ai_expert_appraisal` (size: 3000)
+  * `crypto_hash` (size: 128, opcional / Hash SHA-256 de integridade forense)
   * `started_at` (size: 64)
   * `finished_at` (size: 64)
 

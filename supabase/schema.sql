@@ -91,14 +91,70 @@ CREATE TABLE IF NOT EXISTS public.inspection_photos (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 5. POLÍTICAS DE SEGURANÇA (ROW LEVEL SECURITY - RLS)
+-- 5. TABELA DE AUDITORIA PERICIAL E LOGS DE SEGURANÇA (AUDIT LOGS)
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_identifier VARCHAR(150) NOT NULL,
+    user_role VARCHAR(50) NOT NULL,
+    action VARCHAR(100) NOT NULL,
+    details TEXT,
+    ip_address VARCHAR(50),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON public.audit_logs (action);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_date ON public.audit_logs (created_at DESC);
+
+-- 6. POLÍTICAS DE SEGURANÇA GRANULARES (ROW LEVEL SECURITY - RLS ENTERPRISE)
+-- Ativação mandatória de RLS em todas as tabelas
 ALTER TABLE public.fleet ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inspections ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pcm_service_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inspection_photos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
--- Política de leitura pública/autenticada para operação em campo
-CREATE POLICY "Permitir leitura da frota" ON public.fleet FOR SELECT USING (true);
-CREATE POLICY "Permitir inserção e atualização de inspeções" ON public.inspections FOR ALL USING (true);
-CREATE POLICY "Permitir gestão de S.S. ao PCM" ON public.pcm_service_requests FOR ALL USING (true);
-CREATE POLICY "Permitir fotos auditadas" ON public.inspection_photos FOR ALL USING (true);
+-- 6.1. Políticas da Frota (Leitura pública; Inserção e Atualização restritas; Deleção proibida via anon)
+CREATE POLICY "Permitir leitura da frota" ON public.fleet 
+    FOR SELECT USING (true);
+
+CREATE POLICY "Permitir cadastro e atualizacao de frota" ON public.fleet 
+    FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Permitir atualizacao operacional de frota" ON public.fleet 
+    FOR UPDATE USING (true) WITH CHECK (true);
+
+-- 6.2. Políticas de Laudos de Inspeção (IMUTABILIDADE FORENSE)
+-- É permitido ler e inserir novos laudos.
+-- UPDATE e DELETE são terminantemente BLOQUEADOS para a chave pública/anon para prevenir adulteração de provas.
+CREATE POLICY "Permitir consulta de laudos" ON public.inspections 
+    FOR SELECT USING (true);
+
+CREATE POLICY "Permitir emissao de laudo pericial" ON public.inspections 
+    FOR INSERT WITH CHECK (true);
+
+-- 6.3. Políticas de Solicitações ao PCM
+-- Permite abertura de S.S. e atualização de fluxo pela oficina, proibindo exclusão
+CREATE POLICY "Permitir leitura de SS ao PCM" ON public.pcm_service_requests 
+    FOR SELECT USING (true);
+
+CREATE POLICY "Permitir abertura de SS ao PCM" ON public.pcm_service_requests 
+    FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Permitir acompanhamento de reparo no PCM" ON public.pcm_service_requests 
+    FOR UPDATE USING (true) WITH CHECK (true);
+
+-- 6.4. Políticas de Evidências Fotográficas
+CREATE POLICY "Permitir consulta de fotos periciais" ON public.inspection_photos 
+    FOR SELECT USING (true);
+
+CREATE POLICY "Permitir envio de fotos periciais" ON public.inspection_photos 
+    FOR INSERT WITH CHECK (true);
+
+-- 6.5. Políticas de Trilha de Auditoria (Audit Logs)
+-- Logs podem ser apenas gravados e lidos, nunca alterados ou deletados
+CREATE POLICY "Permitir gravacao de log de auditoria" ON public.audit_logs 
+    FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Permitir consulta de logs de auditoria" ON public.audit_logs 
+    FOR SELECT USING (true);
+
