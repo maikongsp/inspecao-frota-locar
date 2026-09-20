@@ -206,6 +206,21 @@
   font-weight: 700;
 }
 
+.filter-badge {
+  display: inline-block;
+  background-color: rgba(255, 255, 255, 0.12);
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-left: 0.35rem;
+}
+
+.filter-btn.active .filter-badge {
+  background-color: rgba(16, 19, 24, 0.2);
+  color: #101318;
+}
+
 .search-box {
   position: relative;
   min-width: 260px;

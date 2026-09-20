@@ -215,7 +215,7 @@ export const InspectionEngine = {
         this.currentInspection.equipmentId,
         'manutencao',
         this.currentInspection.formattedDate,
-        `${this.currentInspection.inspectorName} (${this.currentInspection.inspectorReg})`,
+        `${this.currentInspection.inspectorName} (Tel: ${this.currentInspection.inspectorPhone || 'Registrado'})`,
         `RETIDO EM MANUTENÇÃO: ${createdSS.id} enviada ao PCM (${createdSS.pcmRecipient}). ${reason}`
       );
 
@@ -231,7 +231,7 @@ export const InspectionEngine = {
         this.currentInspection.equipmentId,
         'disponivel',
         this.currentInspection.formattedDate,
-        `${this.currentInspection.inspectorName} (${this.currentInspection.inspectorReg})`,
+        `${this.currentInspection.inspectorName} (Tel: ${this.currentInspection.inspectorPhone || 'Registrado'})`,
         'Inspecionado e aprovado com 100% de conformidade visual, mecânica e testes funcionais.'
       );
     }

@@ -6,6 +6,8 @@
 import { Storage } from '../storage.js';
 
 export const FleetManager = {
+  currentLimit: 24,
+
   renderMetrics(containerElement) {
     if (!containerElement) return;
 
@@ -93,7 +95,7 @@ export const FleetManager = {
 
     if (fleet.length === 0) {
       containerElement.innerHTML = `
-        <div class="empty-state-card">
+        <div class="empty-state-card" style="grid-column: 1 / -1;">
           <div class="empty-icon">🔍</div>
           <h3>Nenhum Equipamento Encontrado</h3>
           <p>Nenhum equipamento da frota corresponde aos critérios de busca selecionados.</p>
@@ -102,7 +104,11 @@ export const FleetManager = {
       return;
     }
 
-    const html = fleet.map(eq => {
+    const totalMatching = fleet.length;
+    const displayedItems = fleet.slice(0, this.currentLimit);
+    const hasMore = this.currentLimit < totalMatching;
+
+    const cardsHtml = displayedItems.map(eq => {
       const statusMeta = {
         disponivel: {
           badge: '<span class="fleet-badge badge-liberado"><span class="dot"></span> DISPONÍVEL NO PÁTIO</span>',
@@ -191,6 +197,77 @@ export const FleetManager = {
       `;
     }).join('');
 
-    containerElement.innerHTML = html;
+    const paginationHtml = hasMore ? `
+      <div class="load-more-box" style="grid-column: 1 / -1; display:flex; flex-direction:column; align-items:center; gap:0.75rem; margin: 2rem 0; padding:1.5rem; background:var(--locar-chumbo-surface); border-radius:var(--radius-md); border:1px solid var(--locar-chumbo-border);">
+        <span style="font-size:0.85rem; color:var(--text-muted);">
+          Exibindo <strong>${displayedItems.length}</strong> de <strong>${totalMatching}</strong> equipamentos da frota de Betim
+        </span>
+        <div style="display:flex; gap:0.75rem; flex-wrap:wrap; justify-content:center;">
+          <button type="button" class="btn btn-primary btn-load-more-fleet" style="padding:0.75rem 1.75rem;">
+            ⬇ Carregar Mais (+24 Equipamentos)
+          </button>
+          <button type="button" class="btn btn-secondary btn-load-all-fleet" style="padding:0.75rem 1.75rem;">
+            Mostrar Todos (${totalMatching})
+          </button>
+        </div>
+      </div>
+    ` : `
+      <div style="grid-column: 1 / -1; text-align:center; padding:1rem; color:var(--text-muted); font-size:0.8rem;">
+        ✓ Todos os ${totalMatching} equipamentos correspondentes estão exibidos.
+      </div>
+    `;
+
+    containerElement.innerHTML = cardsHtml + paginationHtml;
+  },
+
+  /**
+   * Exporta a frota completa para arquivo Excel / CSV (com UTF-8 BOM)
+   */
+  exportFleetToCSV() {
+    const fleet = Storage.getFleet();
+    const headers = [
+      'TAG / Prefixo',
+      'Categoria',
+      'Marca',
+      'Modelo',
+      'Ano',
+      'Chassi / Série',
+      'Capacidade',
+      'Horímetro (h)',
+      'Filial / Base',
+      'Status Operacional',
+      'Última Inspeção',
+      'Observações Técnicas'
+    ];
+
+    const rows = fleet.map(eq => [
+      eq.tag,
+      eq.typeName || eq.type,
+      eq.brand,
+      eq.model,
+      eq.year,
+      eq.serialNumber || 'N/A',
+      eq.capacity || 'N/A',
+      eq.hourmeter || 0,
+      eq.branch || 'Betim - MG',
+      eq.status.toUpperCase(),
+      eq.lastInspectionDate || 'Nunca',
+      (eq.notes || '').replace(/[\n\r;]/g, ' ')
+    ]);
+
+    const csvContent = '\uFEFF' + [
+      headers.join(';'),
+      ...rows.map(r => r.map(field => `"${String(field).replace(/"/g, '""')}"`).join(';'))
+    ].join('\r\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Relatorio_Frota_Locar_Betim_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 };

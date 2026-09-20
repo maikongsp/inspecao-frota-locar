@@ -100,6 +100,7 @@ function initFleetView() {
       typeFilterBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       AppState.fleetFilterType = btn.getAttribute('data-type');
+      FleetManager.currentLimit = 24;
       renderFleet();
     });
   });
@@ -110,6 +111,7 @@ function initFleetView() {
       statusFilterBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       AppState.fleetFilterStatus = btn.getAttribute('data-status');
+      FleetManager.currentLimit = 24;
       renderFleet();
     });
   });
@@ -118,13 +120,36 @@ function initFleetView() {
   if (searchInput) {
     searchInput.addEventListener('input', (e) => {
       AppState.fleetSearchTerm = e.target.value;
+      FleetManager.currentLimit = 24;
       renderFleet();
+    });
+  }
+
+  const btnExportCSV = document.getElementById('btn-export-fleet-csv');
+  if (btnExportCSV) {
+    btnExportCSV.addEventListener('click', () => {
+      FleetManager.exportFleetToCSV();
+      showToast('Relatório completo da frota de Betim exportado com sucesso!', 'success');
     });
   }
 
   const fleetGrid = document.getElementById('fleet-grid-container');
   if (fleetGrid) {
     fleetGrid.addEventListener('click', (e) => {
+      const loadMoreBtn = e.target.closest('.btn-load-more-fleet');
+      if (loadMoreBtn) {
+        FleetManager.currentLimit += 24;
+        renderFleet();
+        return;
+      }
+
+      const loadAllBtn = e.target.closest('.btn-load-all-fleet');
+      if (loadAllBtn) {
+        FleetManager.currentLimit = 9999;
+        renderFleet();
+        return;
+      }
+
       const startBtn = e.target.closest('.btn-start-inspection');
       if (startBtn) {
         const eqId = startBtn.getAttribute('data-id');
@@ -203,7 +228,6 @@ function initInspectionEvents() {
       const firstName = document.getElementById('input-insp-first-name').value.trim();
       const lastName = document.getElementById('input-insp-last-name').value.trim();
       const phone = document.getElementById('input-insp-phone').value.trim();
-      const inspectorReg = document.getElementById('input-insp-reg').value.trim();
       const inspectorShift = document.getElementById('select-insp-shift').value;
       const hourmeter = Number(document.getElementById('input-insp-hourmeter').value);
 
@@ -217,17 +241,12 @@ function initInspectionEvents() {
         return;
       }
 
-      if (!inspectorReg) {
-        showToast('Informe o registro técnico (CREA/CFT)!', 'warning');
-        return;
-      }
-
       const equipment = Storage.getEquipmentById(eqId);
       InspectionEngine.startNewInspection(equipment, {
         firstName: firstName,
         lastName: lastName,
         phone: phone,
-        registry: inspectorReg,
+        registry: 'Inspetor Técnico Homologado',
         shift: inspectorShift,
         hourmeter: hourmeter
       });
@@ -1226,7 +1245,7 @@ function openEquipmentHistoryModal(equipmentId) {
       <div style="background:var(--locar-chumbo-surface); padding:1rem; border-radius:var(--radius-md); border:1px solid var(--locar-chumbo-border); margin-bottom:0.75rem; display:flex; justify-content:space-between; align-items:center;">
         <div>
           <strong style="color:var(--locar-yellow);">${i.id}</strong> - ${i.formattedDate} às ${i.formattedTime}<br/>
-          <span style="font-size:0.8rem; color:var(--text-muted);">Inspetor: ${i.inspectorName} (${i.inspectorReg})</span>
+          <span style="font-size:0.8rem; color:var(--text-muted);">Inspetor: ${i.inspectorName} | Contato: ${i.inspectorPhone || 'Registrado'}</span>
         </div>
         <div style="display:flex; align-items:center; gap:0.5rem;">
           <span class="badge ${i.finalStatus === 'liberado' ? 'badge-success' : 'badge-danger'}">

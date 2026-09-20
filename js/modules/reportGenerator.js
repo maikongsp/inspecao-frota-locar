@@ -112,8 +112,8 @@ export const ReportGenerator = {
                 <td><strong style="color:#B45309;">${inspection.inspectorPhone || 'Não informado'}</strong></td>
               </tr>
               <tr>
-                <td><strong>Registro Profissional:</strong></td>
-                <td>${inspection.inspectorReg || 'CFT / CREA Homologado'}</td>
+                <td><strong>Função / Responsabilidade:</strong></td>
+                <td>Inspetor Técnico Homologado Locar</td>
               </tr>
               <tr>
                 <td><strong>Turno da Vistoria:</strong></td>
@@ -245,9 +245,8 @@ export const ReportGenerator = {
                 ${inspection.inspectorSignature ? `<img src="${inspection.inspectorSignature}" alt="Assinatura" class="sig-img" />` : '<div class="sig-placeholder">Assinatura Digitalizada Válida</div>'}
               </div>
               <p class="sig-name">${inspection.inspectorFullName || inspection.inspectorName || 'Engenheiro / Técnico Responsável'}</p>
-              <p class="sig-reg">${inspection.inspectorReg || 'CREA / CFT'}</p>
               <p class="sig-reg" style="color:#B45309; font-weight:700;">Tel: ${inspection.inspectorPhone || 'Não informado'}</p>
-              <p class="sig-role">Inspetor Técnico Especialista</p>
+              <p class="sig-role">Inspetor Técnico Homologado Locar</p>
             </div>
 
             <div class="signature-box">

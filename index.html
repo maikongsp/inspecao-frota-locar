@@ -88,23 +88,28 @@
       <div class="filters-toolbar">
         <div class="filters-group">
           <span style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Categoria:</span>
-          <button class="filter-btn filter-type-btn active" data-type="todos">Todos</button>
-          <button class="filter-btn filter-type-btn" data-type="pta">🏗️ PTA (Plataformas)</button>
-          <button class="filter-btn filter-type-btn" data-type="guindaste">🏗️ Guindastes</button>
-          <button class="filter-btn filter-type-btn" data-type="empilhadeira">🚜 Empilhadeiras</button>
+          <button class="filter-btn filter-type-btn active" data-type="todos">Todos <span class="filter-badge">273</span></button>
+          <button class="filter-btn filter-type-btn" data-type="pta">🏗️ PTA <span class="filter-badge">245</span></button>
+          <button class="filter-btn filter-type-btn" data-type="guindaste">🏗️ Guindastes <span class="filter-badge">26</span></button>
+          <button class="filter-btn filter-type-btn" data-type="empilhadeira">🚜 Empilhadeiras <span class="filter-badge">2</span></button>
         </div>
 
         <div class="filters-group">
           <span style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Status da Frota:</span>
-          <button class="filter-btn filter-status-btn active" data-status="todos">Todos</button>
-          <button class="filter-btn filter-status-btn" data-status="disponivel">Disponíveis no Pátio</button>
-          <button class="filter-btn filter-status-btn" data-status="locada">Locadas em Obra</button>
-          <button class="filter-btn filter-status-btn" data-status="manutencao">Em Manutenção (PCM)</button>
+          <button class="filter-btn filter-status-btn active" data-status="todos">Todos <span class="filter-badge">273</span></button>
+          <button class="filter-btn filter-status-btn" data-status="disponivel">Disponíveis <span class="filter-badge" style="color:#22C55E;">70</span></button>
+          <button class="filter-btn filter-status-btn" data-status="locada">Locadas <span class="filter-badge" style="color:#38BDF8;">103</span></button>
+          <button class="filter-btn filter-status-btn" data-status="manutencao">Em Manutenção <span class="filter-badge" style="color:#F59E0B;">100</span></button>
         </div>
 
-        <div class="search-box">
-          <span class="search-icon">🔍</span>
-          <input type="text" class="search-input" id="fleet-search-input" placeholder="Buscar por TAG, modelo ou chassi..." />
+        <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" class="search-input" id="fleet-search-input" placeholder="Buscar por TAG, modelo ou chassi..." />
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-export-fleet-csv" title="Baixar relatório completo da frota de Betim em formato Excel / CSV">
+            📥 Exportar Frota (Excel / CSV)
+          </button>
         </div>
       </div>
 
@@ -357,27 +362,22 @@
             <div>
               <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">Telefone de Contato (Celular/WhatsApp): *</label>
               <input type="tel" id="input-insp-phone" class="search-input" style="border-radius:var(--radius-md);" placeholder="(31) 99876-5432" value="(31) 99876-5432" required />
-              <small style="font-size:0.68rem; color:var(--text-muted);">Obrigatório para contato direto do PCM e clientes.</small>
-            </div>
-            <div>
-              <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">Registro Profissional (CREA/CFT): *</label>
-              <input type="text" id="input-insp-reg" class="search-input" style="border-radius:var(--radius-md);" value="CFT 88412-MG" required />
-            </div>
-          </div>
-
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
-            <div>
-              <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">Turno da Vistoria: *</label>
-              <select id="select-insp-shift" class="search-input" style="border-radius:var(--radius-md);">
-                <option value="Turno Diurno">Turno Diurno (1º Turno)</option>
-                <option value="Turno Vespertino">Turno Vespertino (2º Turno)</option>
-                <option value="Turno Noturno">Turno Noturno (Plantão)</option>
-              </select>
+              <small style="font-size:0.68rem; color:var(--text-muted);">Contato direto do responsável pela vistoria.</small>
             </div>
             <div>
               <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">Horímetro Atual (Horas): *</label>
               <input type="number" id="input-insp-hourmeter" class="search-input" style="border-radius:var(--radius-md);" required />
+              <small style="font-size:0.68rem; color:var(--text-muted);">Leitura registrada no painel da máquina.</small>
             </div>
+          </div>
+
+          <div style="margin-bottom:1rem;">
+            <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">Turno da Vistoria:</label>
+            <select id="select-insp-shift" class="search-input" style="border-radius:var(--radius-md);">
+              <option value="Turno Diurno">Turno Diurno (1º Turno)</option>
+              <option value="Turno Vespertino">Turno Vespertino (2º Turno)</option>
+              <option value="Turno Noturno">Turno Noturno (Plantão)</option>
+            </select>
           </div>
 
           <div style="background:rgba(239, 68, 68, 0.1); border:1px solid var(--status-bloqueado-border); border-radius:var(--radius-md); padding:0.75rem; font-size:0.78rem; color:#FCA5A5;">
