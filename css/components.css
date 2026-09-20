@@ -161,6 +161,110 @@
 .text-danger { color: var(--status-bloqueado) !important; }
 .text-locar { color: var(--locar-yellow) !important; }
 
+/* --- PAINEL ANALÍTICO DETALHADO POR CATEGORIA (PTA, GUINDASTE, EMPILHADEIRA) --- */
+.category-kpis-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.75rem;
+}
+
+.category-summary-card {
+  background-color: var(--locar-chumbo-card);
+  border: 1px solid var(--locar-chumbo-border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+}
+
+.category-summary-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--locar-chumbo-border-light);
+}
+
+.category-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 0.75rem;
+}
+
+.category-card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #FFFFFF;
+}
+
+.category-badge-total {
+  background-color: var(--locar-yellow);
+  color: #101318;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-pill);
+}
+
+.category-status-breakdown {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.status-mini-card {
+  background-color: var(--locar-chumbo-surface);
+  border: 1px solid var(--locar-chumbo-border);
+  border-radius: var(--radius-md);
+  padding: 0.6rem 0.5rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.status-mini-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.status-mini-val {
+  font-family: var(--font-heading);
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.status-mini-pct {
+  font-size: 0.65rem;
+  color: var(--text-disabled);
+}
+
+.status-val-disp { color: var(--status-liberado); }
+.status-val-loc { color: #38BDF8; }
+.status-val-man { color: var(--status-manutencao); }
+
+.category-summary-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  background: rgba(0, 0, 0, 0.18);
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-sm);
+}
+
 /* --- BARRA DE FILTROS E PESQUISA --- */
 .filters-toolbar {
   background-color: var(--locar-chumbo-surface);

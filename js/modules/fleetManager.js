@@ -16,55 +16,192 @@ export const FleetManager = {
     const disponiveis = fleet.filter(e => e.status === 'disponivel').length;
     const manutencao = fleet.filter(e => e.status === 'manutencao').length;
     const locadas = fleet.filter(e => e.status === 'locada').length;
-    const bloqueados = fleet.filter(e => e.status === 'bloqueado').length;
     const taxaAprovacao = total > 0 ? Math.round(((disponiveis + locadas) / total) * 100) : 0;
 
+    // Métricas segregadas por Categoria (PTA, Guindastes, Empilhadeiras)
+    const getCatStats = (catType) => {
+      const items = fleet.filter(e => e.type === catType);
+      const catTotal = items.length;
+      const catDisp = items.filter(e => e.status === 'disponivel').length;
+      const catLoc = items.filter(e => e.status === 'locada').length;
+      const catMan = items.filter(e => e.status === 'manutencao').length;
+      const catOp = catTotal > 0 ? Math.round(((catDisp + catLoc) / catTotal) * 100) : 0;
+      return { total: catTotal, disp: catDisp, loc: catLoc, man: catMan, taxa: catOp };
+    };
+
+    const pta = getCatStats('pta');
+    const guindastes = getCatStats('guindaste');
+    const empilhadeiras = getCatStats('empilhadeira');
+
     containerElement.innerHTML = `
-      <div class="kpi-card">
-        <div class="kpi-icon-box kpi-icon-total">🚜</div>
-        <div class="kpi-details">
-          <span class="kpi-label">Frota Engeman® CMMS | Betim/MG</span>
-          <span class="kpi-value">${total}</span>
-          <span class="kpi-sub">PTA (245), Guindastes (26), Empilhadeiras (2)</span>
+      <!-- CARDS GERAIS CONSOLIDADOS DA BASE BETIM -->
+      <div class="kpis-grid">
+        <div class="kpi-card">
+          <div class="kpi-icon-box kpi-icon-total">🚜</div>
+          <div class="kpi-details">
+            <span class="kpi-label">Frota Engeman® CMMS | Betim/MG</span>
+            <span class="kpi-value">${total}</span>
+            <span class="kpi-sub">Total de Ativos Cadastrados</span>
+          </div>
+        </div>
+
+        <div class="kpi-card kpi-card-success">
+          <div class="kpi-icon-box kpi-icon-ok">✓</div>
+          <div class="kpi-details">
+            <span class="kpi-label">Total Disponíveis</span>
+            <span class="kpi-value text-success">${disponiveis}</span>
+            <span class="kpi-sub">Aptos para Locação</span>
+          </div>
+        </div>
+
+        <div class="kpi-card" style="border-left:4px solid #38BDF8;">
+          <div class="kpi-icon-box" style="background:rgba(56,189,248,0.15); color:#38BDF8;">🏗️</div>
+          <div class="kpi-details">
+            <span class="kpi-label">Total Locadas</span>
+            <span class="kpi-value" style="color:#38BDF8;">${locadas}</span>
+            <span class="kpi-sub">Em Operação em Clientes</span>
+          </div>
+        </div>
+
+        <div class="kpi-card kpi-card-warning">
+          <div class="kpi-icon-box kpi-icon-warn">🔧</div>
+          <div class="kpi-details">
+            <span class="kpi-label">Total em Manutenção</span>
+            <span class="kpi-value text-warning">${manutencao}</span>
+            <span class="kpi-sub">Na Oficina / PCM</span>
+          </div>
+        </div>
+
+        <div class="kpi-card kpi-card-locar">
+          <div class="kpi-icon-box kpi-icon-locar">📊</div>
+          <div class="kpi-details">
+            <span class="kpi-label">Eficiência Operacional</span>
+            <span class="kpi-value text-locar">${taxaAprovacao}%</span>
+            <span class="kpi-sub">(Locadas + Disponíveis) / Total</span>
+          </div>
         </div>
       </div>
 
-      <div class="kpi-card kpi-card-success">
-        <div class="kpi-icon-box kpi-icon-ok">✓</div>
-        <div class="kpi-details">
-          <span class="kpi-label">Disponíveis no Pátio</span>
-          <span class="kpi-value text-success">${disponiveis}</span>
-          <span class="kpi-sub">Aptos para Próxima Locação</span>
-        </div>
+      <!-- PAINEL DETALHADO POR CATEGORIA DE EQUIPAMENTO -->
+      <div style="margin-top:0.5rem; margin-bottom:0.75rem; display:flex; align-items:center; justify-content:space-between;">
+        <span style="font-size:0.85rem; font-weight:800; color:#FFFFFF; text-transform:uppercase; letter-spacing:0.5px;">
+          📊 Status Detalhado por Família de Equipamentos (Engeman®)
+        </span>
+        <span style="font-size:0.75rem; color:var(--text-disabled);">Filial 2-Betim / MG</span>
       </div>
 
-      <div class="kpi-card" style="border-left:4px solid #38BDF8;">
-        <div class="kpi-icon-box" style="background:rgba(56,189,248,0.15); color:#38BDF8;">🏗️</div>
-        <div class="kpi-details">
-          <span class="kpi-label">Locadas em Clientes</span>
-          <span class="kpi-value" style="color:#38BDF8;">${locadas}</span>
-          <span class="kpi-sub">Operando em Contratos</span>
-        </div>
-      </div>
+      <div class="category-kpis-grid">
+        <!-- 1. CARD ANALÍTICO: PLATAFORMAS ELEVATÓRIAS (PTA) -->
+        <div class="category-summary-card" style="border-top:3px solid var(--locar-yellow);">
+          <div class="category-card-header">
+            <div class="category-card-title">
+              <span>🏗️</span>
+              <div>
+                <span>Plataformas Elevatórias (PTA)</span>
+                <span style="display:block; font-size:0.7rem; color:var(--text-muted); font-weight:normal;">Articuladas, Telescópicas e Tesouras</span>
+              </div>
+            </div>
+            <span class="category-badge-total">${pta.total} Equipamentos</span>
+          </div>
 
-      <div class="kpi-card kpi-card-warning">
-        <div class="kpi-icon-box kpi-icon-warn">🔧</div>
-        <div class="kpi-details">
-          <span class="kpi-label">Em Manutenção (PCM)</span>
-          <span class="kpi-value text-warning">${manutencao}</span>
-          <span class="kpi-sub">Programadas na Oficina</span>
-        </div>
-      </div>
+          <div class="category-status-breakdown">
+            <div class="status-mini-card">
+              <span class="status-mini-label">Disponíveis</span>
+              <span class="status-mini-val status-val-disp">${pta.disp}</span>
+              <span class="status-mini-pct">${Math.round((pta.disp / pta.total) * 100)}% da frota</span>
+            </div>
+            <div class="status-mini-card">
+              <span class="status-mini-label">Locadas</span>
+              <span class="status-mini-val status-val-loc">${pta.loc}</span>
+              <span class="status-mini-pct">${Math.round((pta.loc / pta.total) * 100)}% em campo</span>
+            </div>
+            <div class="status-mini-card">
+              <span class="status-mini-label">Manutenção</span>
+              <span class="status-mini-val status-val-man">${pta.man}</span>
+              <span class="status-mini-pct">${Math.round((pta.man / pta.total) * 100)}% na oficina</span>
+            </div>
+          </div>
 
-      <div class="kpi-card kpi-card-locar">
-        <div class="kpi-icon-box kpi-icon-locar">📊</div>
-        <div class="kpi-details">
-          <span class="kpi-label">Aproveitamento Operacional</span>
-          <span class="kpi-value text-locar">${taxaAprovacao}%</span>
-          <span class="kpi-sub">Locadas + Disponíveis / Total</span>
+          <div class="category-summary-footer">
+            <span>Aproveitamento Operacional: <strong style="color:var(--locar-yellow);">${pta.taxa}%</strong></span>
+            <span>PCM Betim: <strong>${pta.man} Ordens</strong></span>
+          </div>
+        </div>
+
+        <!-- 2. CARD ANALÍTICO: GUINDASTES INDUSTRIAIS -->
+        <div class="category-summary-card" style="border-top:3px solid #38BDF8;">
+          <div class="category-card-header">
+            <div class="category-card-title">
+              <span>🏗️</span>
+              <div>
+                <span>Guindastes Industriais</span>
+                <span style="display:block; font-size:0.7rem; color:var(--text-muted); font-weight:normal;">Liebherr, Grove, Tadano e XCMG</span>
+              </div>
+            </div>
+            <span class="category-badge-total" style="background:#38BDF8; color:#0B132B;">${guindastes.total} Equipamentos</span>
+          </div>
+
+          <div class="category-status-breakdown">
+            <div class="status-mini-card">
+              <span class="status-mini-label">Disponíveis</span>
+              <span class="status-mini-val status-val-disp">${guindastes.disp}</span>
+              <span class="status-mini-pct">${Math.round((guindastes.disp / guindastes.total) * 100)}% no pátio</span>
+            </div>
+            <div class="status-mini-card">
+              <span class="status-mini-label">Locados</span>
+              <span class="status-mini-val status-val-loc">${guindastes.loc}</span>
+              <span class="status-mini-pct">${Math.round((guindastes.loc / guindastes.total) * 100)}% em obras</span>
+            </div>
+            <div class="status-mini-card">
+              <span class="status-mini-label">Manutenção</span>
+              <span class="status-mini-val status-val-man">${guindastes.man}</span>
+              <span class="status-mini-pct">${Math.round((guindastes.man / guindastes.total) * 100)}% revisão</span>
+            </div>
+          </div>
+
+          <div class="category-summary-footer">
+            <span>Aproveitamento Operacional: <strong style="color:#38BDF8;">${guindastes.taxa}%</strong></span>
+            <span>PCM Betim: <strong>${guindastes.man} Ordens</strong></span>
+          </div>
+        </div>
+
+        <!-- 3. CARD ANALÍTICO: EMPILHADEIRAS OPERACIONAIS -->
+        <div class="category-summary-card" style="border-top:3px solid #F59E0B;">
+          <div class="category-card-header">
+            <div class="category-card-title">
+              <span>🚜</span>
+              <div>
+                <span>Empilhadeiras Operacionais</span>
+                <span style="display:block; font-size:0.7rem; color:var(--text-muted); font-weight:normal;">Yale e Hyster (Movimentação e Logística)</span>
+              </div>
+            </div>
+            <span class="category-badge-total" style="background:#F59E0B; color:#0B132B;">${empilhadeiras.total} Equipamentos</span>
+          </div>
+
+          <div class="category-status-breakdown">
+            <div class="status-mini-card">
+              <span class="status-mini-label">Disponíveis</span>
+              <span class="status-mini-val status-val-disp">${empilhadeiras.disp}</span>
+              <span class="status-mini-pct">${Math.round((empilhadeiras.disp / empilhadeiras.total) * 100)}% ativa</span>
+            </div>
+            <div class="status-mini-card">
+              <span class="status-mini-label">Locadas</span>
+              <span class="status-mini-val status-val-loc">${empilhadeiras.loc}</span>
+              <span class="status-mini-pct">0% em campo</span>
+            </div>
+            <div class="status-mini-card">
+              <span class="status-mini-label">Manutenção</span>
+              <span class="status-mini-val status-val-man">${empilhadeiras.man}</span>
+              <span class="status-mini-pct">${Math.round((empilhadeiras.man / empilhadeiras.total) * 100)}% na base</span>
+            </div>
+          </div>
+
+          <div class="category-summary-footer">
+            <span>Aproveitamento Operacional: <strong style="color:#F59E0B;">${empilhadeiras.taxa}%</strong></span>
+            <span>PCM Betim: <strong>${empilhadeiras.man} Ordem</strong></span>
+          </div>
         </div>
       </div>
-    `;
   },
 
   renderFleetGrid(containerElement, filterType = 'todos', filterStatus = 'todos', searchTerm = '') {
