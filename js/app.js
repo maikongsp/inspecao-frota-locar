@@ -459,6 +459,15 @@ function promptStartInspection(equipmentId) {
           <em>Esta nova inspeção servirá como vistoria técnica de comprovação de reparos para eventual liberação.</em>
         </div>
       `;
+    } else if (equipment.status === 'reservada' && equipment.reservation) {
+      ssNoticeEl.style.display = 'block';
+      ssNoticeEl.innerHTML = `
+        <div style="background:rgba(245, 158, 11, 0.15); border:1px solid #F59E0B; border-radius:var(--radius-md); padding:0.75rem; margin-bottom:1rem; font-size:0.78rem; color:#FDE68A;">
+          <strong>📑 EQUIPAMENTO COM RESERVA COMERCIAL ATIVA:</strong><br/>
+          Reservado para: <strong>${escapeHTML(equipment.reservation.clientName)}</strong> (Período: ${escapeHTML(equipment.reservation.startDate)} a ${escapeHTML(equipment.reservation.endDate)} - ${escapeHTML(String(equipment.reservation.estimatedDays))} dias).<br/>
+          <em>Esta vistoria técnica validará a liberação preventiva para mobilização segura do cliente.</em>
+        </div>
+      `;
     } else {
       ssNoticeEl.style.display = 'none';
       ssNoticeEl.innerHTML = '';
@@ -1135,9 +1144,13 @@ function populateEquipmentSelectDropdown() {
 
   const fleet = Storage.getFleet();
   select.innerHTML = '<option value="">-- Selecione o Equipamento da Frota --</option>' + 
-    fleet.map(eq => `
-      <option value="${eq.id}">[${eq.tag}] ${eq.brand} ${eq.model} - ${eq.typeName} (${eq.status.toUpperCase()})</option>
-    `).join('');
+    fleet.map(eq => {
+      let statusLabel = eq.status.toUpperCase();
+      if (eq.status === 'reservada' && eq.reservation?.clientName) {
+        statusLabel = `RESERVADA (${eq.reservation.clientName})`;
+      }
+      return `<option value="${eq.id}">[${eq.tag}] ${eq.brand} ${eq.model} - ${eq.typeName} | Status: ${statusLabel}</option>`;
+    }).join('');
 
   const btnStartFromPrompt = document.getElementById('btn-start-from-prompt');
   if (btnStartFromPrompt) {

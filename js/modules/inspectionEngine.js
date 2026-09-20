@@ -259,13 +259,20 @@ export const InspectionEngine = {
       const createdSS = Storage.createServiceRequestFromInspection(this.currentInspection);
       this.currentInspection.associatedServiceRequest = createdSS.id;
 
-      // Atualiza frota para MANUTENÇÃO
+      // Atualiza frota para MANUTENÇÃO (Tolerância Zero)
+      const eqBeforeNC = Storage.getEquipmentById(this.currentInspection.equipmentId);
+      let alertReserved = '';
+      if (eqBeforeNC && eqBeforeNC.status === 'reservada') {
+        const clientName = eqBeforeNC.reservation?.clientName || 'Cliente';
+        alertReserved = ` [ALERTA COMERCIAL: Equipamento reservado para "${clientName}" retido em manutenção! Notificar Comercial Betim.]`;
+      }
+
       Storage.updateEquipmentStatus(
         this.currentInspection.equipmentId,
         'manutencao',
         this.currentInspection.formattedDate,
         `${this.currentInspection.inspectorName} (Tel: ${this.currentInspection.inspectorPhone || 'Registrado'})`,
-        `RETIDO EM MANUTENÇÃO: ${createdSS.id} enviada ao PCM (${createdSS.pcmRecipient}). ${reason}`
+        `RETIDO EM MANUTENÇÃO: ${createdSS.id} enviada ao PCM (${createdSS.pcmRecipient}). ${reason}${alertReserved}`
       );
 
     } else {
@@ -280,13 +287,25 @@ export const InspectionEngine = {
       this.currentInspection.blockReason = null;
       this.currentInspection.associatedServiceRequest = null;
 
-      // Atualiza frota para DISPONÍVEL
+      // Preserva status de Reserva Comercial ou Locação Ativa se o equipamento já estava nesse ciclo
+      const eqBeforeOk = Storage.getEquipmentById(this.currentInspection.equipmentId);
+      const targetStatus = (eqBeforeOk && (eqBeforeOk.status === 'reservada' || eqBeforeOk.status === 'locada')) 
+        ? eqBeforeOk.status 
+        : 'disponivel';
+
+      let approvalNote = 'Inspecionado e aprovado com 100% de conformidade visual, mecânica e testes funcionais.';
+      if (targetStatus === 'reservada') {
+        approvalNote = `Inspecionado e 100% APROVADO. Liberado para mobilização do cliente ${eqBeforeOk?.reservation?.clientName || 'Contratante'}.`;
+      } else if (targetStatus === 'locada') {
+        approvalNote = `Vistoria técnica periódica de campo 100% APROVADA e conforme.`;
+      }
+
       Storage.updateEquipmentStatus(
         this.currentInspection.equipmentId,
-        'disponivel',
+        targetStatus,
         this.currentInspection.formattedDate,
         `${this.currentInspection.inspectorName} (Tel: ${this.currentInspection.inspectorPhone || 'Registrado'})`,
-        'Inspecionado e aprovado com 100% de conformidade visual, mecânica e testes funcionais.'
+        approvalNote
       );
 
       // Se havia Solicitação de Serviço pendente no PCM para este equipamento, registra a baixa técnica
