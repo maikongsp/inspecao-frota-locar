@@ -1004,9 +1004,6 @@ function renderChecklistItems(container, section, currentInsp) {
                 <button type="button" class="btn btn-sm btn-secondary btn-open-camera" data-item-id="${item.id}" data-label="${item.label}">
                   📷 Câmera ao Vivo
                 </button>
-                <button type="button" class="btn btn-sm btn-secondary btn-simulate-photo" data-item-id="${item.id}" data-label="${item.photoLabel || item.label}">
-                  ⚡ Simular Foto Técnica
-                </button>
                 <label class="btn btn-sm btn-secondary" style="margin-bottom:0; cursor:pointer;">
                   📁 Anexar
                   <input type="file" accept="image/*" class="file-upload-input" data-item-id="${item.id}" data-label="${item.label}" style="display:none;" />
@@ -1146,43 +1143,6 @@ function renderChecklistItems(container, section, currentInsp) {
       const itemId = btn.getAttribute('data-item-id');
       const label = btn.getAttribute('data-label');
       openCameraModal(itemId, label);
-    });
-  });
-
-  container.querySelectorAll('.btn-simulate-photo').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const itemId = btn.getAttribute('data-item-id');
-      const label = btn.getAttribute('data-label');
-      const itemConfig = findItemConfig(section, itemId);
-      const isNc = currentInsp.answers[itemId]?.status === 'nao_conforme';
-      
-      const photoData = CameraManager.generateSimulatedInspectionPhoto(
-        currentInsp.equipmentTag,
-        label,
-        isNc ? 'nao_conforme' : 'conforme',
-        isNc ? 'Avaria/Inconformidade encaminhada ao PCM' : 'Item verificado conforme padrão Locar'
-      );
-
-      showToast('Auditoria Visual da IA em andamento...', 'info');
-      const audit = await aiVisionInspector.auditPhoto(photoData, { category: section.id, itemTitle: label });
-
-      InspectionEngine.setItemAnswer(
-        itemId,
-        currentInsp.answers[itemId]?.status || 'conforme',
-        currentInsp.answers[itemId]?.observation || '',
-        photoData,
-        {
-          label: itemConfig.label,
-          norm: itemConfig.norm,
-          requiresPhoto: itemConfig.requiresPhoto,
-          sectionId: section.id,
-          sectionTitle: section.title,
-          aiAudit: audit
-        }
-      );
-
-      renderInspectionWizard();
-      showToast('Evidência técnica gerada e auditada por IA!', 'success');
     });
   });
 
@@ -1846,7 +1806,7 @@ async function openCameraModal(itemId, label) {
   const opened = await CameraManager.openLiveCamera(videoEl);
 
   if (!opened) {
-    showToast('Câmera física não disponível no navegador. Use o botão "Simular Foto Técnica" ou "Anexar".', 'warning');
+    showToast('Câmera física não disponível no navegador. Utilize a opção "Anexar" para enviar a foto.', 'warning');
   }
 }
 
