@@ -144,6 +144,18 @@ export const Storage = {
     const index = fleet.findIndex(item => item.id === id || item.tag === id);
     if (index !== -1) {
       fleet[index].status = newStatus;
+      if (newStatus === 'disponivel') {
+        fleet[index].reservation = null;
+        fleet[index].reservationData = null;
+      } else if (newStatus === 'manutencao' && (fleet[index].reservation || fleet[index].reservationData)) {
+        fleet[index].lastCancelledReservation = {
+          ...(fleet[index].reservation || fleet[index].reservationData || {}),
+          reason: notes || 'Retido em manutenção corretiva pelo PCM',
+          cancelledAt: new Date().toISOString()
+        };
+        fleet[index].reservation = null;
+        fleet[index].reservationData = null;
+      }
       if (lastInspectionDate) fleet[index].lastInspectionDate = lastInspectionDate;
       if (lastInspector) fleet[index].lastInspector = lastInspector;
       if (notes) fleet[index].notes = notes;

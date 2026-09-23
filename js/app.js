@@ -863,11 +863,21 @@ function initInspectionEvents() {
           refreshPCMView();
           refreshHistory();
 
+          // Reseta a sessão de inspeção atual para liberar nova vistoria
+          InspectionEngine.currentInspection = null;
+          AppState.hasSignatureStroke = false;
+          if (AppState.signatureCtx && AppState.signatureCanvas) {
+            AppState.signatureCtx.clearRect(0, 0, AppState.signatureCanvas.width, AppState.signatureCanvas.height);
+          }
+          const opinionInput = document.getElementById('tech-opinion-input');
+          if (opinionInput) opinionInput.value = '';
+          renderInspectionWizard();
+
           if (completed.finalStatus === 'liberado') {
-            showToast('✓ Equipamento 100% Conforme! LIBERADO para operação!', 'success');
+            showToast('✓ Equipamento 100% Conforme! Status atualizado para DISPONÍVEL.', 'success');
             openReportModal(completed);
           } else {
-            showToast(`⛔ Equipamento REPROVADO e BLOQUEADO! S.S. ${completed.associatedServiceRequest} enviada ao PCM.`, 'danger');
+            showToast(`⛔ Equipamento REPROVADO! Status alterado para MANUTENÇÃO. S.S. ${completed.associatedServiceRequest} enviada ao PCM.`, 'danger');
             
             // Exibe o E-mail enviado ao PCM imediatamente
             const requests = Storage.getServiceRequests();
@@ -1677,6 +1687,11 @@ function initModals() {
         closeModal(modal.id);
         if (modal.id === 'modal-camera-capture') {
           CameraManager.stopLiveCamera();
+        }
+        if (modal.id === 'modal-view-report' || modal.id === 'modal-pcm-email') {
+          if (AppState.currentTab === 'inspecao') {
+            switchTab('dashboard');
+          }
         }
       }
     });

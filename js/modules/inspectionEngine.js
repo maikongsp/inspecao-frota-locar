@@ -289,18 +289,9 @@ export const InspectionEngine = {
       this.currentInspection.blockReason = null;
       this.currentInspection.associatedServiceRequest = null;
 
-      // Preserva status de Reserva Comercial ou Locação Ativa se o equipamento já estava nesse ciclo
-      const eqBeforeOk = Storage.getEquipmentById(this.currentInspection.equipmentId);
-      const targetStatus = (eqBeforeOk && (eqBeforeOk.status === 'reservada' || eqBeforeOk.status === 'locada')) 
-        ? eqBeforeOk.status 
-        : 'disponivel';
-
-      let approvalNote = 'Inspecionado e aprovado com 100% de conformidade visual, mecânica e testes funcionais.';
-      if (targetStatus === 'reservada') {
-        approvalNote = `Inspecionado e 100% APROVADO. Liberado para mobilização do cliente ${eqBeforeOk?.reservation?.clientName || 'Contratante'}.`;
-      } else if (targetStatus === 'locada') {
-        approvalNote = `Vistoria técnica periódica de campo 100% APROVADA e conforme.`;
-      }
+      // Regra Operacional Locar: Ao ser aprovada na inspeção técnica, a frota passa automaticamente para 'disponivel'
+      const targetStatus = 'disponivel';
+      const approvalNote = 'Inspecionado e 100% APROVADO. Equipamento conforme liberado para o pátio com status DISPONÍVEL.';
 
       Storage.updateEquipmentStatus(
         this.currentInspection.equipmentId,
