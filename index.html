@@ -944,6 +944,77 @@
     </div>
   </footer>
 
+  <!-- =========================================================================
+       WIDGET FLUTUANTE DE DÚVIDAS E COPILOTO IA (CANTO INFERIOR ESQUERDO)
+       ========================================================================= -->
+  <!-- Balão Flutuante (FAB) -->
+  <button type="button" class="ai-assistant-fab" id="btn-ai-assistant-toggle" title="Dúvidas e Ajuda com IA" aria-label="Abrir assistente inteligente de dúvidas do sistema">
+    <div class="ai-assistant-fab-icon">
+      🤖
+      <span class="ai-assistant-fab-badge"></span>
+    </div>
+    <div class="ai-assistant-fab-text">
+      <span class="ai-assistant-fab-title">IA Copilot</span>
+      <span class="ai-assistant-fab-sub">Dúvidas do Sistema</span>
+    </div>
+  </button>
+
+  <!-- Caixa de Mensagens / Chat da IA -->
+  <div class="ai-assistant-chatbox" id="ai-assistant-chatbox" role="dialog" aria-labelledby="ai-chat-title" aria-modal="false">
+    <!-- Cabeçalho -->
+    <div class="ai-chat-header">
+      <div class="ai-chat-header-info">
+        <div class="ai-chat-avatar">🤖</div>
+        <div>
+          <div class="ai-chat-title" id="ai-chat-title">Locar AI Copilot</div>
+          <div class="ai-chat-subtitle">
+            <span class="ai-chat-status-dot"></span> Online • Suporte Inteligente
+          </div>
+        </div>
+      </div>
+      <div class="ai-chat-actions">
+        <button type="button" class="ai-chat-btn-action" id="btn-ai-chat-clear" title="Limpar conversa" aria-label="Limpar histórico da conversa">
+          🗑️
+        </button>
+        <button type="button" class="ai-chat-btn-action" id="btn-ai-chat-close" title="Fechar" aria-label="Fechar assistente de IA">
+          ✕
+        </button>
+      </div>
+    </div>
+
+    <!-- Mensagens -->
+    <div class="ai-chat-messages" id="ai-chat-messages-container">
+      <div class="ai-message bot">
+        <div class="ai-message-bubble">
+          <strong>Olá! Sou o Assistente de Inteligência Artificial da Locar Guindastes. 🤖</strong><br><br>
+          Posso te orientar sobre o uso do sistema, como fazer inspeções técnicas, regras do PCM, Tolerância Zero, cadastro por CPF/e-mail e normas regulamentadoras.<br><br>
+          <em>Como posso te ajudar hoje?</em>
+        </div>
+        <span class="ai-message-time">Agora</span>
+      </div>
+
+      <!-- Sugestões Rápidas Iniciais -->
+      <div class="ai-chat-suggestions" id="ai-chat-initial-suggestions">
+        <button type="button" class="ai-suggestion-chip" data-question="Como fazer uma inspeção?">📋 Como fazer inspeção?</button>
+        <button type="button" class="ai-suggestion-chip" data-question="Como cadastrar usuário por CPF ou e-mail?">👥 Cadastrar por CPF/E-mail</button>
+        <button type="button" class="ai-suggestion-chip" data-question="O que é a Tolerância Zero?">🛑 Tolerância Zero</button>
+        <button type="button" class="ai-suggestion-chip" data-question="Como funciona o fluxo do PCM?">⚙️ Fluxo do PCM</button>
+        <button type="button" class="ai-suggestion-chip" data-question="Quais são as regras do Administrador Master?">🛡️ Administrador Master</button>
+        <button type="button" class="ai-suggestion-chip" data-question="Como funciona a reserva comercial?">💼 Reserva Comercial</button>
+        <button type="button" class="ai-suggestion-chip" data-question="Como validar laudo por QR Code?">🔍 Validar QR Code</button>
+        <button type="button" class="ai-suggestion-chip" data-question="Como funciona o modo offline?">📶 Modo Offline</button>
+      </div>
+    </div>
+
+    <!-- Campo de Entrada -->
+    <form class="ai-chat-input-area" id="form-ai-chat-input">
+      <input type="text" class="ai-chat-input" id="input-ai-chat-query" placeholder="Pergunte sobre o sistema..." autocomplete="off" required />
+      <button type="submit" class="ai-chat-send-btn" id="btn-ai-chat-send" title="Enviar pergunta" aria-label="Enviar mensagem">
+        ➤
+      </button>
+    </form>
+  </div>
+
   <!-- BIBLIOTECA DE EXPORTAÇÃO DIRETA DE PDF OFFLINE -->
   <script src="js/libs/html2pdf.bundle.min.js"></script>
   <!-- SCRIPT PRINCIPAL MODULAR (ES6) -->

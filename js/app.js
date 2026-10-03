@@ -56,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initNewEquipmentForm();
   initModals();
   initPCMSettings();
+  initAIAssistantWidget();
   initGlobalSystemApi();
 });
 
@@ -2761,3 +2762,165 @@ function initGlobalSystemApi() {
     getRegisteredUsers: () => authManager.getRegisteredUsers()
   };
 }
+
+/**
+ * Controlador do Balão Flutuante e Caixa de Mensagens do Copiloto IA (Canto Inferior Esquerdo)
+ */
+function initAIAssistantWidget() {
+  const fab = document.getElementById('btn-ai-assistant-toggle');
+  const chatbox = document.getElementById('ai-assistant-chatbox');
+  const btnClose = document.getElementById('btn-ai-chat-close');
+  const btnClear = document.getElementById('btn-ai-chat-clear');
+  const form = document.getElementById('form-ai-chat-input');
+  const input = document.getElementById('input-ai-chat-query');
+  const messagesContainer = document.getElementById('ai-chat-messages-container');
+
+  if (!fab || !chatbox || !form || !input || !messagesContainer) return;
+
+  const scrollToBottom = () => {
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  };
+
+  const toggleChat = (forceState) => {
+    const shouldOpen = typeof forceState === 'boolean' ? forceState : !chatbox.classList.contains('open');
+    if (shouldOpen) {
+      chatbox.classList.add('open');
+      input.focus();
+      scrollToBottom();
+    } else {
+      chatbox.classList.remove('open');
+    }
+  };
+
+  fab.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleChat();
+  });
+
+  if (btnClose) {
+    btnClose.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleChat(false);
+    });
+  }
+
+  // Previne fechamento ao clicar dentro da caixa de chat
+  chatbox.addEventListener('click', (e) => {
+    e.stopPropagation();
+  });
+
+  // Fecha ao clicar fora
+  document.addEventListener('click', (e) => {
+    if (chatbox.classList.contains('open') && !chatbox.contains(e.target) && !fab.contains(e.target)) {
+      chatbox.classList.remove('open');
+    }
+  });
+
+  // Limpar histórico da conversa
+  if (btnClear) {
+    btnClear.addEventListener('click', () => {
+      messagesContainer.innerHTML = `
+        <div class="ai-message bot">
+          <div class="ai-message-bubble">
+            <strong>Histórico reiniciado. 🤖</strong><br><br>
+            Como posso te orientar agora sobre o sistema de inspeção e frota da Locar?
+          </div>
+          <span class="ai-message-time">Agora</span>
+        </div>
+        <div class="ai-chat-suggestions">
+          <button type="button" class="ai-suggestion-chip" data-question="Como fazer uma inspeção?">📋 Como fazer inspeção?</button>
+          <button type="button" class="ai-suggestion-chip" data-question="Como cadastrar usuário por CPF ou e-mail?">👥 Cadastrar por CPF/E-mail</button>
+          <button type="button" class="ai-suggestion-chip" data-question="O que é a Tolerância Zero?">🛑 Tolerância Zero</button>
+          <button type="button" class="ai-suggestion-chip" data-question="Como funciona o fluxo do PCM?">⚙️ Fluxo do PCM</button>
+          <button type="button" class="ai-suggestion-chip" data-question="Quais são as regras do Administrador Master?">🛡️ Administrador Master</button>
+          <button type="button" class="ai-suggestion-chip" data-question="Como funciona a reserva comercial?">💼 Reserva Comercial</button>
+          <button type="button" class="ai-suggestion-chip" data-question="Como validar laudo por QR Code?">🔍 Validar QR Code</button>
+        </div>
+      `;
+      bindSuggestionChips();
+      input.value = '';
+      input.focus();
+    });
+  }
+
+  const handleUserMessage = (questionText) => {
+    const q = (questionText || input.value || '').trim();
+    if (!q) return;
+
+    input.value = '';
+
+    // 1. Renderiza mensagem do usuário
+    const nowTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const userMsgEl = document.createElement('div');
+    userMsgEl.className = 'ai-message user';
+    userMsgEl.innerHTML = `
+      <div class="ai-message-bubble">${escapeHTML(q)}</div>
+      <span class="ai-message-time">${nowTime}</span>
+    `;
+    messagesContainer.appendChild(userMsgEl);
+    scrollToBottom();
+
+    // 2. Indicador de digitação da IA
+    const typingEl = document.createElement('div');
+    typingEl.className = 'ai-message bot ai-typing-wrapper';
+    typingEl.innerHTML = `
+      <div class="ai-typing-indicator">
+        <div class="ai-typing-dot"></div>
+        <div class="ai-typing-dot"></div>
+        <div class="ai-typing-dot"></div>
+      </div>
+    `;
+    messagesContainer.appendChild(typingEl);
+    scrollToBottom();
+
+    // 3. Processa resposta através do AICopilot
+    setTimeout(() => {
+      typingEl.remove();
+
+      const response = aiCopilot.askSystemQuestion(q);
+      const botMsgEl = document.createElement('div');
+      botMsgEl.className = 'ai-message bot';
+
+      let suggestionsHtml = '';
+      if (Array.isArray(response.suggestions) && response.suggestions.length > 0) {
+        suggestionsHtml = `
+          <div class="ai-chat-suggestions" style="margin-top:0.6rem;">
+            ${response.suggestions.map(s => `<button type="button" class="ai-suggestion-chip" data-question="${escapeHTML(s)}">${escapeHTML(s)}</button>`).join('')}
+          </div>
+        `;
+      }
+
+      botMsgEl.innerHTML = `
+        <div class="ai-message-bubble">
+          ${response.text}
+          ${suggestionsHtml}
+        </div>
+        <span class="ai-message-time">${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+      `;
+      messagesContainer.appendChild(botMsgEl);
+      bindSuggestionChips();
+      scrollToBottom();
+      input.focus();
+    }, 380);
+  };
+
+  const bindSuggestionChips = () => {
+    messagesContainer.querySelectorAll('.ai-suggestion-chip').forEach(chip => {
+      if (chip.getAttribute('data-bound') === 'true') return;
+      chip.setAttribute('data-bound', 'true');
+      chip.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const text = chip.getAttribute('data-question') || chip.textContent;
+        handleUserMessage(text);
+      });
+    });
+  };
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    handleUserMessage();
+  });
+
+  bindSuggestionChips();
+}
+
