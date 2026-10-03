@@ -2436,6 +2436,12 @@ function initOperationalDataLoader() {
   const btnSubmitUsers = document.getElementById('btn-submit-import-users');
   if (btnSubmitUsers) {
     btnSubmitUsers.addEventListener('click', async () => {
+      if (!authManager.canManageSystemAdministration()) {
+        showToast('Acesso Restrito: Apenas o Administrador Master (Maikon Pinho) pode criar usuários ou alterar perfis/senhas.', 'danger');
+        requireAuth('Autentique-se como Administrador Master para cadastrar colaboradores.', () => btnSubmitUsers.click(), () => authManager.canManageSystemAdministration());
+        return;
+      }
+
       const ta = document.getElementById('textarea-import-users');
       const text = ta?.value?.trim();
       if (!text) {
@@ -2492,13 +2498,19 @@ function initOperationalDataLoader() {
   const btnClearUsers = document.getElementById('btn-clear-all-users');
   if (btnClearUsers) {
     btnClearUsers.addEventListener('click', () => {
-      if (confirm('Deseja realmente limpar todos os usuários cadastrados?')) {
+      if (!authManager.canManageSystemAdministration()) {
+        showToast('Acesso Restrito: Apenas o Administrador Master (Maikon Pinho) pode zerar a base de usuários.', 'danger');
+        requireAuth('Autentique-se como Administrador Master para zerar usuários.', () => btnClearUsers.click(), () => authManager.canManageSystemAdministration());
+        return;
+      }
+
+      if (confirm('Deseja realmente limpar todos os colaboradores cadastrados? O Administrador Master (Maikon Pinho) será preservado.')) {
         authManager.clearUsers();
         renderRegisteredUsersList();
         renderQuickRoleButtons();
         updateAuthUI();
         renderPermissionsBox();
-        showToast('Lista de usuários foi zerada.', 'info');
+        showToast('Lista de colaboradores foi limpa com sucesso. Administrador Master preservado.', 'info');
       }
     });
   }
@@ -2517,10 +2529,16 @@ function initOperationalDataLoader() {
     });
   }
 
-  // Importar / Atualizar Frota
+  // Importar / Atualizar Frota fora dos fluxos regulares
   const btnSubmitFleet = document.getElementById('btn-submit-import-fleet');
   if (btnSubmitFleet) {
     btnSubmitFleet.addEventListener('click', () => {
+      if (!authManager.canManageSystemAdministration()) {
+        showToast('Acesso Restrito: Apenas o Administrador Master (Maikon Pinho) pode alterar a base de dados de frota fora dos fluxos operacionais.', 'danger');
+        requireAuth('Autentique-se como Administrador Master para atualizar a base de frota.', () => btnSubmitFleet.click(), () => authManager.canManageSystemAdministration());
+        return;
+      }
+
       const ta = document.getElementById('textarea-import-fleet');
       const text = ta?.value?.trim();
       if (!text) {
@@ -2570,7 +2588,13 @@ function initOperationalDataLoader() {
   const btnClean = document.getElementById('btn-action-full-clean');
   if (btnClean) {
     btnClean.addEventListener('click', async () => {
-      if (confirm('Atenção: Todos os dados de teste (laudos, vistorias, solicitações do PCM e usuários fictícios) serão apagados para entrada em operação. Deseja prosseguir?')) {
+      if (!authManager.canManageSystemAdministration()) {
+        showToast('Acesso Restrito: Apenas o Administrador Master (Maikon Pinho) pode executar o reset operacional do sistema.', 'danger');
+        requireAuth('Autentique-se como Administrador Master para executar a limpeza de dados.', () => btnClean.click(), () => authManager.canManageSystemAdministration());
+        return;
+      }
+
+      if (confirm('Atenção: Todos os dados de teste (laudos, vistorias e solicitações do PCM) serão limpos. O Administrador Master (Maikon Pinho) será preservado. Deseja prosseguir?')) {
         authManager.clearUsers();
         await Storage.clearAllTestData();
         renderRegisteredUsersList();

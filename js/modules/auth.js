@@ -65,8 +65,19 @@ export function normalizeRole(role) {
   return clean;
 }
 
-// Em operação real, inicia com lista limpa pronta para carga oficial de colaboradores
-const DEFAULT_USERS = [];
+// Administrador Único e Soberano do Sistema
+export const MASTER_ADMIN = {
+  id: 'usr_admin_master_001',
+  registration: 'maikon.pinho',
+  name: 'Maikon Pinho',
+  email: 'maikon.pinho@locar.com.br',
+  role: 'admin',
+  roleName: 'Administrador Geral Corporativo',
+  phone: '(31) 99999-9999',
+  pinHash: 'c7f7d4ea88792fc954a096d15b35bc74e795cefeebb5b62cbd4bcdc01202bd11' // SHA-256 de 'Esqueci1!'
+};
+
+const DEFAULT_USERS = [MASTER_ADMIN];
 
 export class AuthManager {
   constructor() {
@@ -83,7 +94,33 @@ export class AuthManager {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) {
           let updated = false;
-          parsed.forEach(u => {
+
+          // Garante que o administrador exclusivo Maikon Pinho está sempre presente com as credenciais corretas
+          const adminIdx = parsed.findIndex(u => 
+            u.email?.toLowerCase() === 'maikon.pinho@locar.com.br' || 
+            u.registration?.toLowerCase() === 'maikon.pinho'
+          );
+
+          if (adminIdx === -1) {
+            parsed.unshift(MASTER_ADMIN);
+            updated = true;
+          } else {
+            // Garante que o papel é estritamente admin e o pinHash é o oficial
+            if (parsed[adminIdx].role !== 'admin' || parsed[adminIdx].pinHash !== MASTER_ADMIN.pinHash) {
+              parsed[adminIdx] = { ...parsed[adminIdx], ...MASTER_ADMIN };
+              updated = true;
+            }
+          }
+
+          // Regra Estrita: Somente Maikon Pinho pode ter perfil 'admin'
+          parsed.forEach((u, idx) => {
+            const isMaikon = (u.email?.toLowerCase() === 'maikon.pinho@locar.com.br' || u.registration?.toLowerCase() === 'maikon.pinho');
+            if (!isMaikon && u.role === 'admin') {
+              u.role = 'manager';
+              u.roleName = ROLE_DEFINITIONS.manager.name;
+              updated = true;
+            }
+
             if (!u.pinHash && u.pin) {
               if (u.pin === '1234') {
                 u.pinHash = DEFAULT_PIN_HASH;
@@ -95,6 +132,7 @@ export class AuthManager {
               updated = true;
             }
           });
+
           if (updated) {
             localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(parsed));
           }
@@ -122,44 +160,61 @@ export class AuthManager {
   /**
    * Importa e cadastra uma lista oficial de usuários com perfis e PINs com hash SHA-256
    * @param {Array<object>} usersList 
-   * @param {boolean} replaceExisting Se true, substitui a lista inteira
+   * @param {boolean} replaceExisting Se true, substitui a lista inteira (mantendo o admin master)
    */
   async importUsers(usersList, replaceExisting = true) {
     if (!Array.isArray(usersList)) {
       throw new Error('A lista de usuários deve ser um array de colaboradores.');
     }
 
-    const current = replaceExisting ? [] : this.getRegisteredUsers();
+    const current = replaceExisting ? [MASTER_ADMIN] : this.getRegisteredUsers();
     let importedCount = 0;
 
     for (let i = 0; i < usersList.length; i++) {
       const raw = usersList[i];
       if (!raw || (!raw.name && !raw.email && !raw.registration)) continue;
 
-      const normRole = normalizeRole(raw.role || raw.perfil || 'inspector');
+      const rawEmail = (raw.email || raw.login || '').toLowerCase().trim();
+      const rawReg = (raw.registration || raw.matricula || '').toUpperCase().trim();
+
+      // Regra Soberana: Se for maikon.pinho, é o MASTER_ADMIN
+      const isMaikon = (rawEmail === 'maikon.pinho@locar.com.br' || rawReg.toLowerCase() === 'maikon.pinho');
+
+      // Se não for Maikon Pinho, NÃO PODE ter perfil 'admin'
+      let normRole = normalizeRole(raw.role || raw.perfil || 'inspector');
+      if (!isMaikon && normRole === 'admin') {
+        normRole = 'manager'; // rebaixa automaticamente para gestor
+      } else if (isMaikon) {
+        normRole = 'admin';
+      }
+
       const roleMeta = ROLE_DEFINITIONS[normRole] || ROLE_DEFINITIONS.inspector;
 
       let pinHash = raw.pinHash;
       if (!pinHash) {
-        const rawPin = raw.pin || raw.senha || '1234';
-        pinHash = await generateAuditHash(String(rawPin).trim());
+        if (isMaikon) {
+          pinHash = MASTER_ADMIN.pinHash;
+        } else {
+          const rawPin = raw.pin || raw.senha || '1234';
+          pinHash = await generateAuditHash(String(rawPin).trim());
+        }
       }
 
       const userObj = {
-        id: raw.id || `usr_${normRole}_${Date.now()}_${i + 1}`,
-        registration: (raw.registration || raw.matricula || `LOC-${String(1000 + i)}`).toUpperCase().trim(),
-        name: (raw.name || raw.nome || 'Operador Locar').trim(),
-        email: (raw.email || raw.login || '').toLowerCase().trim(),
+        id: isMaikon ? MASTER_ADMIN.id : (raw.id || `usr_${normRole}_${Date.now()}_${i + 1}`),
+        registration: isMaikon ? 'maikon.pinho' : (rawReg || `LOC-${String(1000 + i)}`),
+        name: isMaikon ? 'Maikon Pinho' : (raw.name || raw.nome || 'Operador Locar').trim(),
+        email: isMaikon ? 'maikon.pinho@locar.com.br' : rawEmail,
         role: normRole,
-        roleName: raw.roleName || raw.cargo || roleMeta.name,
-        phone: raw.phone || raw.telefone || '',
+        roleName: isMaikon ? MASTER_ADMIN.roleName : (raw.roleName || raw.cargo || roleMeta.name),
+        phone: raw.phone || raw.telefone || (isMaikon ? MASTER_ADMIN.phone : ''),
         pinHash
       };
 
       // Substitui se já existir mesma matrícula ou e-mail
       const existingIdx = current.findIndex(u => 
-        (u.registration && u.registration === userObj.registration) ||
-        (u.email && userObj.email && u.email === userObj.email)
+        (u.registration && u.registration.toLowerCase() === userObj.registration.toLowerCase()) ||
+        (u.email && userObj.email && u.email.toLowerCase() === userObj.email.toLowerCase())
       );
 
       if (existingIdx !== -1) {
@@ -175,14 +230,14 @@ export class AuthManager {
   }
 
   /**
-   * Limpa todos os usuários cadastrados e encerra sessão
+   * Limpa todos os colaboradores mantendo o Administrador Soberano Maikon Pinho
    */
   clearUsers() {
     try {
-      localStorage.removeItem(USERS_STORAGE_KEY);
+      this.setRegisteredUsers([MASTER_ADMIN]);
       this.failedAttempts.clear();
       this.logout();
-      this.logAudit('USERS_CLEARED', 'Base de usuários foi completamente resetada para entrada em operação.');
+      this.logAudit('USERS_CLEARED', 'Base de usuários foi resetada mantendo exclusivamente o Administrador Master.');
       return true;
     } catch (e) {
       console.warn('Erro ao limpar usuários:', e);
@@ -379,6 +434,27 @@ export class AuthManager {
 
   canManageReservations() {
     return this.hasRole('commercial', 'manager', 'admin');
+  }
+
+  /**
+   * Verifica se o usuário autenticado é estritamente o Administrador Master (Maikon Pinho)
+   */
+  isAdminMaster() {
+    if (!this.currentUser) return false;
+    const isMaikon = (
+      this.currentUser.role === 'admin' &&
+      (this.currentUser.email?.toLowerCase() === 'maikon.pinho@locar.com.br' ||
+       this.currentUser.registration?.toLowerCase() === 'maikon.pinho')
+    );
+    return isMaikon;
+  }
+
+  /**
+   * Valida permissão soberana: Apenas o Administrador Master pode alterar bases de dados fora dos fluxos,
+   * criar usuários, alterar senhas ou alterar perfis.
+   */
+  canManageSystemAdministration() {
+    return this.isAdminMaster();
   }
 
   logAudit(action, details) {
