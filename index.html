@@ -646,9 +646,9 @@
         <form id="form-corporate-login" style="background:var(--locar-chumbo-surface); padding:1rem; border-radius:var(--radius-md); border:1px solid var(--locar-chumbo-border);">
           <div style="margin-bottom:0.75rem;">
             <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">
-              Matrícula ou E-mail Corporativo:
+              CPF, E-mail ou Matrícula Corporativa:
             </label>
-            <input type="text" id="auth-input-identifier" class="search-input" placeholder="Ex: LOC-7842 ou comercial.betim@locar.com.br" required style="border-radius:var(--radius-md);" />
+            <input type="text" id="auth-input-identifier" class="search-input" placeholder="Ex: CPF (000.000.000-00), e-mail ou matrícula" required style="border-radius:var(--radius-md);" />
           </div>
           <div style="margin-bottom:0.75rem;">
             <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">
@@ -830,7 +830,7 @@
         <!-- ABA 1: CARGA DE USUÁRIOS -->
         <div id="loader-content-users" class="loader-tab-pane">
           <p style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:0.75rem;">
-            Cole abaixo a lista oficial de usuários e colaboradores com seus respectivos perfis operacionais (em formato <strong>JSON</strong> ou <strong>CSV</strong>).
+            Cadastre novos colaboradores informando <strong>CPF</strong> ou <strong>E-mail</strong> corporativo, perfil operacional e PIN (em formato <strong>JSON</strong> ou <strong>CSV</strong>).
           </p>
 
           <div style="background:var(--locar-chumbo-surface); padding:0.65rem 0.85rem; border-radius:var(--radius-sm); border:1px solid var(--locar-chumbo-border); margin-bottom:0.75rem; font-size:0.75rem; color:var(--text-muted);">
@@ -842,7 +842,7 @@
             <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">
               Lista de Usuários (JSON ou CSV):
             </label>
-            <textarea id="textarea-import-users" class="search-input" rows="8" style="width:100%; border-radius:var(--radius-md); font-family:monospace; font-size:0.78rem; line-height:1.4;" placeholder='[&#10;  {&#10;    "name": "Nome do Colaborador",&#10;    "registration": "LOC-1234",&#10;    "email": "colaborador@locar.com.br",&#10;    "role": "inspector",&#10;    "phone": "(31) 99999-9999",&#10;    "pin": "1234"&#10;  }&#10;]'></textarea>
+            <textarea id="textarea-import-users" class="search-input" rows="8" style="width:100%; border-radius:var(--radius-md); font-family:monospace; font-size:0.78rem; line-height:1.4;" placeholder='[&#10;  {&#10;    "name": "Nome do Colaborador",&#10;    "cpf": "123.456.789-00",&#10;    "email": "colaborador@locar.com.br",&#10;    "role": "inspector",&#10;    "phone": "(31) 99999-9999",&#10;    "pin": "1234"&#10;  }&#10;]'></textarea>
           </div>
 
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:1rem;">

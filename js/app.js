@@ -2329,16 +2329,19 @@ export function renderQuickRoleButtons() {
     admin: '🛡️'
   };
 
-  container.innerHTML = users.map(u => `
-    <button type="button" class="btn btn-secondary btn-quick-user-select" data-user-id="${escapeHTML(u.id || u.registration)}" style="justify-content:flex-start; text-align:left; padding:0.55rem 0.7rem;">
+  container.innerHTML = users.map(u => {
+    const idLabel = u.cpf ? `CPF: ${u.cpf}` : (u.registration ? `Mat: ${u.registration}` : (u.email || 'N/A'));
+    return `
+    <button type="button" class="btn btn-secondary btn-quick-user-select" data-user-id="${escapeHTML(u.id || u.registration || u.cpf)}" style="justify-content:flex-start; text-align:left; padding:0.55rem 0.7rem;">
       <span style="font-size:1.2rem; margin-right:0.4rem;">${roleIcons[u.role] || '👤'}</span>
       <div style="overflow:hidden;">
         <strong style="display:block; font-size:0.82rem; color:#FFFFFF; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${escapeHTML(u.name)}</strong>
         <span style="font-size:0.68rem; color:var(--locar-yellow); display:block;">${escapeHTML(u.roleName || u.role)}</span>
-        <span style="font-size:0.65rem; color:var(--text-muted); display:block;">Mat: ${escapeHTML(u.registration || 'N/A')}</span>
+        <span style="font-size:0.65rem; color:var(--text-muted); display:block; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${escapeHTML(idLabel)}</span>
       </div>
     </button>
-  `).join('');
+  `;
+  }).join('');
 
   container.querySelectorAll('.btn-quick-user-select').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -2388,6 +2391,7 @@ function initOperationalDataLoader() {
       const sample = [
         {
           name: "João da Silva",
+          cpf: "123.456.789-01",
           registration: "LOC-1010",
           email: "joao.silva@locar.com.br",
           role: "inspector",
@@ -2396,6 +2400,7 @@ function initOperationalDataLoader() {
         },
         {
           name: "Maria Fernandes",
+          cpf: "234.567.890-12",
           registration: "LOC-2020",
           email: "maria.fernandes@locar.com.br",
           role: "pcm",
@@ -2404,25 +2409,23 @@ function initOperationalDataLoader() {
         },
         {
           name: "Lucas Rocha",
-          registration: "LOC-3030",
+          cpf: "345.678.901-23",
           email: "lucas.rocha@locar.com.br",
           role: "manager",
           phone: "(31) 98800-5566",
           pin: "1234"
         },
         {
-          name: "Patricia Souza",
-          registration: "LOC-4040",
+          name: "Patricia Souza (Apenas E-mail)",
           email: "patricia.souza@locar.com.br",
           role: "commercial",
           phone: "(31) 98800-7788",
           pin: "1234"
         },
         {
-          name: "Gestor Geral",
-          registration: "LOC-5050",
-          email: "gestor.geral@locar.com.br",
-          role: "admin",
+          name: "Carlos Mendes (Apenas CPF)",
+          cpf: "456.789.012-34",
+          role: "inspector",
           phone: "(31) 98800-9900",
           pin: "1234"
         }
@@ -2455,21 +2458,67 @@ function initOperationalDataLoader() {
           const raw = JSON.parse(text);
           parsedList = Array.isArray(raw) ? raw : [raw];
         } else {
-          // Parse CSV
+          // Parse CSV com suporte a cabeçalho ou posicional (CPF, E-mail, Matrícula)
           const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+          let headerMap = null;
+
           lines.forEach((line, idx) => {
             const sep = line.includes(';') ? ';' : (line.includes(',') ? ',' : '\t');
             const parts = line.split(sep).map(p => p.trim().replace(/^["']|["']$/g, ''));
-            if (idx === 0 && (parts[0].toLowerCase().includes('nome') || parts[0].toLowerCase().includes('name'))) return;
-            if (parts.length >= 2) {
-              parsedList.push({
-                name: parts[0] || 'Operador',
-                registration: parts[1] || `LOC-${1000 + idx}`,
-                email: parts[2] || '',
-                role: parts[3] || 'inspector',
-                phone: parts[4] || '',
-                pin: parts[5] || '1234'
+            const lowerLine = line.toLowerCase();
+
+            // Detecta se a 1ª linha é cabeçalho
+            if (idx === 0 && (lowerLine.includes('nome') || lowerLine.includes('name') || lowerLine.includes('cpf') || lowerLine.includes('email') || lowerLine.includes('matricula'))) {
+              headerMap = parts.map(p => p.toLowerCase().trim());
+              return;
+            }
+
+            if (headerMap) {
+              const rowObj = {};
+              parts.forEach((val, pIdx) => {
+                const header = headerMap[pIdx] || `col_${pIdx}`;
+                if (header.includes('nome') || header.includes('name')) rowObj.name = val;
+                else if (header.includes('cpf') || header.includes('doc')) rowObj.cpf = val;
+                else if (header.includes('matr') || header.includes('reg')) rowObj.registration = val;
+                else if (header.includes('mail') || header.includes('email') || header.includes('e-mail')) rowObj.email = val;
+                else if (header.includes('perf') || header.includes('role') || header.includes('cargo')) rowObj.role = val;
+                else if (header.includes('tel') || header.includes('phone') || header.includes('cel')) rowObj.phone = val;
+                else if (header.includes('pin') || header.includes('senha') || header.includes('pass')) rowObj.pin = val;
               });
+              if (rowObj.name || rowObj.cpf || rowObj.email || rowObj.registration) {
+                parsedList.push(rowObj);
+              }
+            } else {
+              // CSV posicional
+              if (parts.length >= 2) {
+                let pName = parts[0] || 'Operador';
+                let pCpf = '';
+                let pReg = '';
+                let pEmail = '';
+
+                // Varre colunas para identificar CPF (11 dígitos), Email (@) ou Matrícula
+                for (let c = 1; c < Math.min(parts.length, 4); c++) {
+                  const val = parts[c];
+                  const digits = val.replace(/\D/g, '');
+                  if (digits.length === 11 && !pCpf) {
+                    pCpf = val;
+                  } else if (val.includes('@') && !pEmail) {
+                    pEmail = val;
+                  } else if (!pReg && val.length > 0) {
+                    pReg = val;
+                  }
+                }
+
+                parsedList.push({
+                  name: pName,
+                  cpf: pCpf,
+                  registration: pReg || (pCpf ? pCpf : `LOC-${1000 + idx}`),
+                  email: pEmail,
+                  role: parts[3] || 'inspector',
+                  phone: parts[4] || '',
+                  pin: parts[5] || '1234'
+                });
+              }
             }
           });
         }
@@ -2654,7 +2703,7 @@ function renderRegisteredUsersList() {
       <thead>
         <tr style="border-bottom:1px solid rgba(255,255,255,0.1); color:var(--text-muted);">
           <th style="padding:4px 6px;">Nome</th>
-          <th style="padding:4px 6px;">Matrícula</th>
+          <th style="padding:4px 6px;">CPF / Matrícula</th>
           <th style="padding:4px 6px;">Perfil</th>
           <th style="padding:4px 6px;">E-mail</th>
         </tr>
@@ -2663,7 +2712,10 @@ function renderRegisteredUsersList() {
         ${users.map(u => `
           <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
             <td style="padding:4px 6px; font-weight:600; color:#FFF;">${escapeHTML(u.name)}</td>
-            <td style="padding:4px 6px; color:var(--locar-yellow); font-family:monospace;">${escapeHTML(u.registration || '-')}</td>
+            <td style="padding:4px 6px; color:var(--locar-yellow); font-family:monospace;">
+              ${escapeHTML(u.cpf || u.registration || '-')}
+              ${u.cpf && u.registration && u.registration !== u.cpf ? `<span style="display:block; font-size:0.68rem; color:var(--text-muted); font-family:sans-serif;">Mat: ${escapeHTML(u.registration)}</span>` : ''}
+            </td>
             <td style="padding:4px 6px;">${escapeHTML(u.roleName || u.role)}</td>
             <td style="padding:4px 6px; color:var(--text-muted);">${escapeHTML(u.email || '-')}</td>
           </tr>

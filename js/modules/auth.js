@@ -65,12 +65,24 @@ export function normalizeRole(role) {
   return clean;
 }
 
+export function cleanCPF(cpf) {
+  if (!cpf) return '';
+  return String(cpf).replace(/\D/g, '');
+}
+
+export function formatCPF(cpf) {
+  const digits = cleanCPF(cpf);
+  if (digits.length !== 11) return digits || '';
+  return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+}
+
 // Administrador Único e Soberano do Sistema
 export const MASTER_ADMIN = {
   id: 'usr_admin_master_001',
   registration: 'maikon.pinho',
   name: 'Maikon Pinho',
   email: 'maikon.pinho@locar.com.br',
+  cpf: '',
   role: 'admin',
   roleName: 'Administrador Geral Corporativo',
   phone: '(31) 99999-9999',
@@ -159,6 +171,7 @@ export class AuthManager {
 
   /**
    * Importa e cadastra uma lista oficial de usuários com perfis e PINs com hash SHA-256
+   * Suporta cadastro informando CPF ou E-mail ou Matrícula
    * @param {Array<object>} usersList 
    * @param {boolean} replaceExisting Se true, substitui a lista inteira (mantendo o admin master)
    */
@@ -172,10 +185,17 @@ export class AuthManager {
 
     for (let i = 0; i < usersList.length; i++) {
       const raw = usersList[i];
-      if (!raw || (!raw.name && !raw.email && !raw.registration)) continue;
+      if (!raw || (!raw.name && !raw.email && !raw.registration && !raw.cpf && !raw.documento)) continue;
 
       const rawEmail = (raw.email || raw.login || '').toLowerCase().trim();
       const rawReg = (raw.registration || raw.matricula || '').toUpperCase().trim();
+
+      // Suporte a CPF explícito ou inferido
+      let rawCpf = formatCPF(raw.cpf || raw.CPF || raw.documento || raw.doc || '');
+      if (!rawCpf && cleanCPF(rawReg).length === 11) {
+        rawCpf = formatCPF(rawReg);
+      }
+      const cleanRawCpf = cleanCPF(rawCpf);
 
       // Regra Soberana: Se for maikon.pinho, é o MASTER_ADMIN
       const isMaikon = (rawEmail === 'maikon.pinho@locar.com.br' || rawReg.toLowerCase() === 'maikon.pinho');
@@ -200,9 +220,21 @@ export class AuthManager {
         }
       }
 
+      let effectiveReg = rawReg;
+      if (!effectiveReg) {
+        if (rawCpf) {
+          effectiveReg = rawCpf;
+        } else if (rawEmail) {
+          effectiveReg = rawEmail.split('@')[0].toUpperCase();
+        } else {
+          effectiveReg = `LOC-${String(1000 + i)}`;
+        }
+      }
+
       const userObj = {
         id: isMaikon ? MASTER_ADMIN.id : (raw.id || `usr_${normRole}_${Date.now()}_${i + 1}`),
-        registration: isMaikon ? 'maikon.pinho' : (rawReg || `LOC-${String(1000 + i)}`),
+        registration: isMaikon ? 'maikon.pinho' : effectiveReg,
+        cpf: isMaikon ? (MASTER_ADMIN.cpf || '') : rawCpf,
         name: isMaikon ? 'Maikon Pinho' : (raw.name || raw.nome || 'Operador Locar').trim(),
         email: isMaikon ? 'maikon.pinho@locar.com.br' : rawEmail,
         role: normRole,
@@ -211,11 +243,14 @@ export class AuthManager {
         pinHash
       };
 
-      // Substitui se já existir mesma matrícula ou e-mail
-      const existingIdx = current.findIndex(u => 
-        (u.registration && u.registration.toLowerCase() === userObj.registration.toLowerCase()) ||
-        (u.email && userObj.email && u.email.toLowerCase() === userObj.email.toLowerCase())
-      );
+      // Substitui se já existir mesmo CPF, matrícula ou e-mail
+      const existingIdx = current.findIndex(u => {
+        const uCleanCpf = cleanCPF(u.cpf || (cleanCPF(u.registration).length === 11 ? u.registration : ''));
+        const matchCpf = cleanRawCpf && uCleanCpf && cleanRawCpf === uCleanCpf;
+        const matchEmail = rawEmail && u.email && u.email.toLowerCase() === rawEmail;
+        const matchReg = userObj.registration && u.registration && u.registration.toLowerCase() === userObj.registration.toLowerCase();
+        return Boolean(matchCpf || matchEmail || matchReg);
+      });
 
       if (existingIdx !== -1) {
         current[existingIdx] = userObj;
@@ -343,9 +378,16 @@ export class AuthManager {
 
     // 2. Base corporativa homologada para operação em campo (offline-first com Hash SHA-256)
     const inputHash = await generateAuditHash(cleanSecret);
+    const cleanDigits = cleanCPF(cleanId);
     const users = this.getRegisteredUsers();
     const user = users.find(u => {
-      const matchId = (u.email.toLowerCase() === cleanId || u.registration.toLowerCase() === cleanId);
+      const uCleanCpf = cleanCPF(u.cpf || (cleanCPF(u.registration).length === 11 ? u.registration : ''));
+      const matchCpf = Boolean(cleanDigits && cleanDigits.length === 11 && uCleanCpf && cleanDigits === uCleanCpf);
+      const matchEmail = Boolean(u.email && u.email.toLowerCase() === cleanId);
+      const matchReg = Boolean(u.registration && u.registration.toLowerCase() === cleanId);
+      const matchDirectCpf = Boolean(u.cpf && u.cpf.toLowerCase() === cleanId);
+
+      const matchId = matchCpf || matchEmail || matchReg || matchDirectCpf;
       if (!matchId) return false;
       // Valida com hash SHA-256 ou legado em migração
       return u.pinHash === inputHash || u.pin === cleanSecret;
@@ -365,7 +407,7 @@ export class AuthManager {
     this.logAudit('LOGIN_FAILED', `Credencial incorreta informada para ${cleanId}`);
     return { 
       success: false, 
-      error: 'Matrícula/E-mail ou PIN incorreto. Verifique suas credenciais corporativas.' 
+      error: 'CPF, E-mail, Matrícula ou Senha/PIN incorreto. Verifique suas credenciais corporativas.' 
     };
   }
 
@@ -382,14 +424,21 @@ export class AuthManager {
     return null;
   }
 
-  quickSwitchUserById(idOrReg) {
+  quickSwitchUserById(idOrRegOrCpf) {
     const users = this.getRegisteredUsers();
-    const clean = String(idOrReg).trim().toLowerCase();
-    const user = users.find(u => 
-      u.id?.toLowerCase() === clean || 
-      u.registration?.toLowerCase() === clean ||
-      u.email?.toLowerCase() === clean
-    );
+    const clean = String(idOrRegOrCpf).trim().toLowerCase();
+    const cleanDigits = cleanCPF(clean);
+    const user = users.find(u => {
+      const uCleanCpf = cleanCPF(u.cpf || (cleanCPF(u.registration).length === 11 ? u.registration : ''));
+      const matchCpf = Boolean(cleanDigits && cleanDigits.length === 11 && uCleanCpf && cleanDigits === uCleanCpf);
+      return (
+        matchCpf ||
+        u.id?.toLowerCase() === clean || 
+        u.registration?.toLowerCase() === clean ||
+        u.email?.toLowerCase() === clean ||
+        u.cpf?.toLowerCase() === clean
+      );
+    });
     if (user) {
       const sessionUser = { ...user, authSource: 'quick_switch' };
       delete sessionUser.pin;
