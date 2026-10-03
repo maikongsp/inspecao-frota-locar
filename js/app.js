@@ -36,7 +36,7 @@ const AppState = {
 // --- INICIALIZAÇÃO DA APLICAÇÃO ---
 document.addEventListener('DOMContentLoaded', () => {
   // Purga compulsória de dados de teste e usuários fictícios para entrada em operação
-  const PROD_KEY = 'locar_prod_cleaned_v2';
+  const PROD_KEY = 'locar_prod_cleaned_v3_fleet1_fleet2';
   if (localStorage.getItem(PROD_KEY) !== 'ready') {
     Storage.clearAllTestData();
     authManager.clearUsers();

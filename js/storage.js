@@ -56,22 +56,29 @@ export const Storage = {
   // --- GESTÃO DA FROTA REAL (ENGEMAN® CMMS BETIM) ---
   getFleet() {
     this.clearLegacyData();
+    const FLEET_VERSION_TAG = 'locar_fleet_v4_fleet1_fleet2_betim_272';
+    const currentVersion = localStorage.getItem('locar_fleet_version_tag');
+
     let fleet = null;
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.FLEET);
-      if (data) {
-        const parsed = JSON.parse(data);
-        if (Array.isArray(parsed) && parsed.length > 50) {
-          fleet = parsed;
+      // Se a versão em cache for anterior à unificação de fleet 1 e fleet 2, força atualização
+      if (currentVersion === FLEET_VERSION_TAG) {
+        const data = localStorage.getItem(STORAGE_KEYS.FLEET);
+        if (data) {
+          const parsed = JSON.parse(data);
+          if (Array.isArray(parsed) && parsed.length >= 270) {
+            fleet = parsed;
+          }
         }
       }
     } catch (e) {
-      console.warn('Erro ao ler frota do localStorage, recarregando dados do Engeman® CMMS Betim:', e);
+      console.warn('Erro ao ler frota do localStorage, recarregando dados oficiais de fleet 1 e fleet 2:', e);
     }
     
     if (!fleet) {
-      // Inicializa com a frota oficial de 273 equipamentos do Engeman® CMMS
+      // Inicializa com a frota oficial de 272 equipamentos reais de fleet 1.xls e fleet 2.xls
       fleet = JSON.parse(JSON.stringify(INITIAL_FLEET));
+      localStorage.setItem('locar_fleet_version_tag', FLEET_VERSION_TAG);
     }
 
     // Enriquece frotas locadas/reservadas com metadados de classificação de clientes se ainda não possuírem

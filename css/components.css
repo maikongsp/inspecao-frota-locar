@@ -1440,12 +1440,13 @@
 }
 
 /* ==========================================================================
-   WIDGET FLUTUANTE DE SUPORTE & COPILOTO IA (CANTO INFERIOR ESQUERDO)
+   WIDGET FLUTUANTE DE SUPORTE & COPILOTO IA (CANTO INFERIOR DIREITO)
    ========================================================================== */
 .ai-assistant-fab {
   position: fixed;
   bottom: 24px;
-  left: 24px;
+  right: 24px;
+  left: auto;
   z-index: 1050;
   display: flex;
   align-items: center;
@@ -1513,7 +1514,8 @@
 .ai-assistant-chatbox {
   position: fixed;
   bottom: 84px;
-  left: 24px;
+  right: 24px;
+  left: auto;
   width: 390px;
   max-width: calc(100vw - 36px);
   height: 540px;
@@ -1781,12 +1783,14 @@
 @media (max-width: 480px) {
   .ai-assistant-fab {
     bottom: 16px;
-    left: 16px;
+    right: 16px;
+    left: auto;
     padding: 0.55rem 0.9rem;
   }
   .ai-assistant-chatbox {
     bottom: 74px;
-    left: 12px;
+    right: 12px;
+    left: auto;
     width: calc(100vw - 24px);
     height: 70vh;
   }
