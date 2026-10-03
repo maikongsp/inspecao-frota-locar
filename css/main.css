@@ -315,6 +315,7 @@ body {
 .footer-norms {
   display: flex;
   gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .footer-norms span {
@@ -327,16 +328,98 @@ body {
   font-weight: 700;
 }
 
+/* ==========================================================================
+   OTIMIZAÇÃO RESPONSIVA: DESKTOP, TABLET E MOBILE
+   ========================================================================== */
+
+@media (max-width: 1024px) {
+  .header-actions {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+}
+
 @media (max-width: 768px) {
+  .app-header {
+    padding: 0.65rem 1rem;
+  }
+
   .header-container {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
+    gap: 0.75rem;
   }
+
+  .brand-section {
+    gap: 0.85rem;
+  }
+
+  .locar-logo-img {
+    height: 42px;
+  }
+
   .system-title-badge {
     border-left: none;
     padding-left: 0;
   }
+
+  .system-name {
+    font-size: 0.95rem;
+  }
+
+  .system-tagline {
+    font-size: 0.68rem;
+  }
+
+  .header-actions {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.5rem;
+  }
+
+  .system-clock {
+    font-size: 0.75rem;
+    padding: 0.3rem 0.5rem;
+  }
+
+  .nav-container {
+    padding: 0 1rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .nav-tab {
+    padding: 0.75rem 0.9rem;
+    font-size: 0.82rem;
+  }
+
   .app-main {
-    padding: 1rem;
+    padding: 0.85rem;
+  }
+
+  .footer-container {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.85rem;
   }
 }
+
+@media (max-width: 480px) {
+  .system-clock {
+    display: none; /* Em smartphones a hora já é exibida nativamente na barra superior */
+  }
+
+  .user-session-badge {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .header-actions .btn {
+    flex: 1 1 auto;
+    text-align: center;
+    justify-content: center;
+  }
+}
+

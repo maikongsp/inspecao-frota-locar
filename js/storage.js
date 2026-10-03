@@ -11,8 +11,10 @@ const STORAGE_KEYS = {
   FLEET: 'locar_inspection_fleet_v3_betim',
   INSPECTIONS: 'locar_inspection_history_v2_betim',
   SERVICE_REQUESTS: 'locar_pcm_service_requests_v2_betim',
-  PCM_CONFIG: 'locar_pcm_config_v2'
+  PCM_CONFIG: 'locar_pcm_config_v2',
+  FEEDBACK_REPORTS: 'locar_feedback_reports_v1'
 };
+
 
 export const Storage = {
   // Limpa chaves legadas fictícias
@@ -499,5 +501,61 @@ export const Storage = {
 
     this.saveFleet(fleet);
     return { success: true, updatedCount, totalFleet: fleet.length };
+  },
+
+  // --- INFORMATIVOS DE FALHAS & SUGESTÕES AO ADMINISTRADOR ---
+  getAdminEmail() {
+    return 'maikon.pinho@locar.com.br';
+  },
+
+  getFeedbackReports() {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.FEEDBACK_REPORTS);
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.warn('Erro ao carregar informativos de falha e sugestões:', e);
+    }
+    return [];
+  },
+
+  saveFeedbackReport(report) {
+    if (!report || typeof report !== 'object') return null;
+    const reports = this.getFeedbackReports();
+    // Adiciona o novo informativo no início
+    reports.unshift(report);
+    try {
+      localStorage.setItem(STORAGE_KEYS.FEEDBACK_REPORTS, JSON.stringify(reports));
+    } catch (e) {
+      console.error('Erro ao salvar informativo de falha/sugestão no storage:', e);
+    }
+    return report;
+  },
+
+  updateFeedbackReportStatus(reportId, newStatus) {
+    const reports = this.getFeedbackReports();
+    const target = reports.find(r => r.id === reportId);
+    if (!target) return false;
+    target.status = newStatus;
+    target.updatedAt = new Date().toISOString();
+    try {
+      localStorage.setItem(STORAGE_KEYS.FEEDBACK_REPORTS, JSON.stringify(reports));
+      return true;
+    } catch (e) {
+      console.error('Erro ao atualizar status do informativo:', e);
+      return false;
+    }
+  },
+
+  clearFeedbackReports() {
+    try {
+      localStorage.removeItem(STORAGE_KEYS.FEEDBACK_REPORTS);
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 };
+

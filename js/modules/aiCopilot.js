@@ -265,7 +265,7 @@ Conclusão Pericial: O equipamento encontra-se FORMALMENTE BLOQUEADO PARA OPERA�
         }
 
         // 6. PCM / Solicitações de Serviço
-        if (q.includes('pcm') || q.includes('solicita') || q.includes('ss') || q.includes('ordem') || q.includes('manuten') || q.includes('oficina')) {
+        if (q.includes('pcm') || q.includes('solicita') || /\bss\b/.test(q) || q.includes('s.s.') || q.includes('ordem de serviço') || q.includes('manuten') || q.includes('oficina')) {
             return {
                 text: `<strong>⚙️ Integração com PCM (Planejamento e Manutenção):</strong><br><br>
                 <strong>1. Geração Automática de S.S.:</strong> Sempre que uma máquina é reprovada na vistoria, o sistema cria uma Solicitação de Serviço oficial numerada (ex: <code>SS-PCM-BETIM-2026-001</code>).<br>
@@ -389,7 +389,25 @@ Conclusão Pericial: O equipamento encontra-se FORMALMENTE BLOQUEADO PARA OPERA�
             };
         }
 
-        // 13. Resposta Inteligente Genérica / Contextual
+        // 13. Relato de Falhas, Bugs e Sugestões ao Administrador
+        if (q.includes('falha') || q.includes('bug') || q.includes('erro') || q.includes('sugest') || q.includes('sugestão') || q.includes('problema') || q.includes('reclam') || q.includes('suporte')) {
+            return {
+                text: `<strong>📢 Relato de Falhas, Bugs e Sugestões:</strong><br><br>
+                Você pode enviar informativos e relatórios diretamente ao <strong>Administrador Geral (Maikon Pinho)</strong>:<br><br>
+                • <strong>Botão no Cabeçalho / Rodapé:</strong> Clique em <strong>"💡 Sugestões / Falhas"</strong> no topo da tela ou no link do rodapé.<br>
+                • <strong>Categorias:</strong> Relate falhas técnicas (bugs), envie sugestões de melhoria, tire dúvidas ou faça elogios.<br>
+                • <strong>Despacho Oficial por E-mail:</strong> O sistema gera um protocolo exclusivo (ex: <code>INF-LOC-20261003-8821</code>) e dispara automaticamente por e-mail para <code>maikon.pinho@locar.com.br</code>.<br>
+                • <strong>Despacho via WhatsApp:</strong> Há também um botão direto para enviar a mensagem formatada no WhatsApp corporativo!`,
+                suggestions: [
+                    "Quem é o Administrador Master?",
+                    "Como cadastrar usuário por CPF ou e-mail?",
+                    "Como fazer uma inspeção?"
+                ]
+            };
+        }
+
+        // 14. Resposta Inteligente Genérica / Contextual
+
         return {
             text: `<strong>💡 Informações do Sistema de Inspeção Locar:</strong><br><br>
             Entendi sua dúvida sobre <em>"${escapeHTML(question)}"</em>.<br><br>

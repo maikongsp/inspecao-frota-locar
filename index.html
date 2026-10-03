@@ -56,9 +56,14 @@
           📥 Carga Operacional
         </button>
 
+        <button type="button" class="btn btn-sm btn-secondary" id="btn-open-feedback-modal" style="border-color:#F59E0B; color:#F59E0B; font-weight:600;" title="Reportar falha técnica ou enviar sugestão ao Administrador Geral (maikon.pinho@locar.com.br)">
+          💡 Sugestões / Falhas
+        </button>
+
         <button type="button" class="btn btn-sm btn-secondary" id="btn-open-verify-modal" title="Conferir autenticidade de laudo pericial por Hash SHA-256 ou QR Code">
           🔍 Validar Laudo
         </button>
+
 
         <!-- Indicador de Status e Sincronização do Appwrite Cloud -->
         <div class="cloud-sync-badge" id="btn-trigger-cloud-sync" style="display:flex; align-items:center; gap:0.45rem; background:var(--locar-chumbo-surface); padding:0.35rem 0.65rem; border-radius:var(--radius-md); border:1px solid var(--locar-chumbo-border); cursor:pointer; font-size:0.75rem;" title="Clique para sincronizar vistorias pendentes com o Appwrite Cloud">
@@ -822,9 +827,13 @@
           <button type="button" class="btn btn-sm btn-secondary tab-loader-btn" data-loader-tab="fleet" id="tab-btn-loader-fleet">
             🚜 2. Atualizar Status das Frotas
           </button>
-          <button type="button" class="btn btn-sm btn-secondary tab-loader-btn" data-loader-tab="reset" id="tab-btn-loader-reset" style="color:#EF4444;">
-            🧹 3. Reset / Limpeza
+          <button type="button" class="btn btn-sm btn-secondary tab-loader-btn" data-loader-tab="feedback" id="tab-btn-loader-feedback" style="color:var(--locar-yellow);">
+            📩 3. Falhas & Sugestões (<span id="count-admin-feedback">0</span>)
           </button>
+          <button type="button" class="btn btn-sm btn-secondary tab-loader-btn" data-loader-tab="reset" id="tab-btn-loader-reset" style="color:#EF4444;">
+            🧹 4. Reset / Limpeza
+          </button>
+
         </div>
 
         <!-- ABA 1: CARGA DE USUÁRIOS -->
@@ -896,7 +905,23 @@
           </div>
         </div>
 
-        <!-- ABA 3: RESET / LIMPEZA COMPLETA -->
+        <!-- ABA 3: INFORMATIVOS DE FALHAS & SUGESTÕES RECEBIDAS -->
+        <div id="loader-content-feedback" class="loader-tab-pane" style="display:none;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.85rem;">
+            <p style="font-size:0.82rem; color:var(--text-secondary); margin:0;">
+              Mensagens, falhas e sugestões de melhoria enviadas pelos usuários ao Administrador Geral (<strong>maikon.pinho@locar.com.br</strong>).
+            </p>
+            <button type="button" class="btn btn-sm btn-secondary" id="btn-refresh-admin-feedback" style="font-size:0.72rem; padding:0.25rem 0.6rem;">
+              🔄 Atualizar Chamados
+            </button>
+          </div>
+
+          <div id="container-admin-feedback-list" style="max-height:360px; overflow-y:auto; padding-right:4px;">
+            <!-- Renderizado dinamicamente pelo FeedbackManager -->
+          </div>
+        </div>
+
+        <!-- ABA 4: RESET / LIMPEZA COMPLETA -->
         <div id="loader-content-reset" class="loader-tab-pane" style="display:none;">
           <div style="background:rgba(239, 68, 68, 0.1); border:1px solid #EF4444; border-radius:var(--radius-md); padding:1rem; margin-bottom:1rem;">
             <strong style="color:#EF4444; display:block; font-size:0.9rem; margin-bottom:0.5rem;">
@@ -917,6 +942,142 @@
     </div>
   </div>
 
+  <!-- =========================================================================
+       MODAL: INFORMATIVO DE FALHAS E SUGESTÕES AO ADMINISTRADOR
+       ========================================================================= -->
+  <div class="modal-backdrop" id="modal-feedback">
+    <div class="modal-container" style="max-width: 650px;">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">📢 Informativo de Falhas ou Sugestões</h3>
+          <span style="font-size:0.75rem; color:var(--locar-yellow); display:block; margin-top:2px;">
+            Encaminhamento direto ao Administrador Geral (maikon.pinho@locar.com.br)
+          </span>
+        </div>
+        <button type="button" class="btn-close-modal" aria-label="Fechar">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <form id="form-submit-feedback">
+          <!-- Banner Informativo -->
+          <div style="background:var(--locar-chumbo-surface); border:1px solid var(--locar-chumbo-border); border-left:4px solid var(--locar-yellow); padding:0.75rem 1rem; border-radius:var(--radius-sm); margin-bottom:1.25rem;">
+            <p style="font-size:0.8rem; color:#E2E8F0; line-height:1.4; margin:0;">
+              Identificou alguma inconformidade no sistema, lentidão, comportamento inesperado ou tem uma sugestão de melhoria operacional? 
+              Preencha o formulário abaixo. Uma cópia formal será arquivada e disparada para o e-mail oficial do Administrador Geral.
+            </p>
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.75rem; margin-bottom:1rem;">
+            <div>
+              <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">
+                Tipo de Informativo: *
+              </label>
+              <select id="feedback-type" class="search-input" style="width:100%; border-radius:var(--radius-md); padding:0.6rem;" required>
+                <option value="falha">🐛 Falha / Erro no Sistema (Bug)</option>
+                <option value="sugestao" selected>💡 Sugestão de Melhoria</option>
+                <option value="duvida">❓ Dúvida Operacional / Normas</option>
+                <option value="elogio">⭐ Elogio / Outros</option>
+              </select>
+            </div>
+
+            <div>
+              <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">
+                Nível de Severidade: *
+              </label>
+              <select id="feedback-severity" class="search-input" style="width:100%; border-radius:var(--radius-md); padding:0.6rem;" required>
+                <option value="baixa">🟢 Baixa (Pode aguardar)</option>
+                <option value="media" selected>🟡 Média (Inconveniente)</option>
+                <option value="alta">🟠 Alta (Dificulta vistorias/rotina)</option>
+                <option value="critica">🔴 Crítica / Impeditiva (Bloqueia trabalho)</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="margin-bottom:1rem;">
+            <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">
+              Módulo ou Tela Relacionada:
+            </label>
+            <select id="feedback-module" class="search-input" style="width:100%; border-radius:var(--radius-md); padding:0.6rem;">
+              <option value="frota">🚜 Frota & Dashboard de Betim</option>
+              <option value="inspecao">📋 Nova Inspeção Técnica & Checklists</option>
+              <option value="pcm">📨 Solicitações de Serviço (PCM)</option>
+              <option value="laudos">📜 Laudos Periciais & Validador QR Code</option>
+              <option value="auth">🔐 Login, CPF/E-mail & Controle de Acesso</option>
+              <option value="camera">📷 Câmera / Assinatura Digital Touch</option>
+              <option value="geral" selected>🌐 Sistema Geral / Interface / Outros</option>
+            </select>
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.75rem; margin-bottom:1rem;">
+            <div>
+              <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">
+                Seu Nome / Identificação: *
+              </label>
+              <input type="text" id="feedback-sender-name" class="search-input" style="width:100%; border-radius:var(--radius-md); padding:0.6rem;" placeholder="Nome do colaborador" required />
+            </div>
+
+            <div>
+              <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">
+                Seu E-mail ou Telefone p/ Retorno:
+              </label>
+              <input type="text" id="feedback-sender-contact" class="search-input" style="width:100%; border-radius:var(--radius-md); padding:0.6rem;" placeholder="email@locar.com.br ou (31) 99999-9999" />
+            </div>
+          </div>
+
+          <div style="margin-bottom:1rem;">
+            <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">
+              Título Resumido: *
+            </label>
+            <input type="text" id="feedback-subject" class="search-input" style="width:100%; border-radius:var(--radius-md); padding:0.6rem;" placeholder="Ex: Sugestão para checklist da PTA / Botão da câmera lento" required />
+          </div>
+
+          <div style="margin-bottom:1.25rem;">
+            <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">
+              Descrição Detalhada da Falha ou Sugestão: *
+            </label>
+            <textarea id="feedback-description" class="search-input" rows="4" style="width:100%; border-radius:var(--radius-md); padding:0.6rem; font-size:0.82rem; line-height:1.4;" placeholder="Descreva passo a passo o ocorrido ou explique detalhadamente sua sugestão..." required></textarea>
+          </div>
+
+          <div class="modal-footer" style="padding:0; border:none; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+            <button type="button" class="btn btn-secondary btn-close-modal">Cancelar</button>
+            <button type="submit" class="btn btn-primary" id="btn-submit-feedback">
+              ✉️ Enviar ao Administrador por E-mail ➔
+            </button>
+          </div>
+        </form>
+
+        <!-- Painel de Sucesso após Envio -->
+        <div id="feedback-success-panel" style="display:none; text-align:center; padding:1rem 0;">
+          <div style="font-size:3rem; margin-bottom:0.5rem;">✅</div>
+          <h3 style="color:#FFF; font-size:1.15rem; margin-bottom:0.35rem;">Informativo Enviado com Sucesso!</h3>
+          <p style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:1rem;">
+            Seu relato foi protocolado sob o número <strong id="feedback-success-id" style="color:var(--locar-yellow); font-family:var(--font-mono);">---</strong> 
+            e direcionado a <strong style="color:#FFF;">maikon.pinho@locar.com.br</strong>.
+          </p>
+
+          <div style="background:var(--locar-chumbo-surface); border:1px solid var(--locar-chumbo-border); border-radius:var(--radius-md); padding:1rem; margin-bottom:1.25rem; text-align:left;">
+            <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.5rem; font-weight:700;">AÇÕES DE DESPACHO DIRETO:</div>
+            <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">
+              <a id="feedback-link-mailto" href="#" class="btn btn-primary btn-sm" style="text-decoration:none; display:inline-flex; align-items:center; gap:0.35rem;">
+                📧 Abrir no Aplicativo de E-mail (Enviar Agora)
+              </a>
+              <a id="feedback-link-whatsapp" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="text-decoration:none; display:inline-flex; align-items:center; gap:0.35rem; color:#22C55E; border-color:#22C55E;">
+                💬 Enviar pelo WhatsApp
+              </a>
+              <button type="button" id="btn-copy-feedback-text" class="btn btn-secondary btn-sm">
+                📋 Copiar Texto Completo
+              </button>
+            </div>
+          </div>
+
+          <button type="button" class="btn btn-secondary btn-close-modal" style="width:100%;">
+            Concluir & Fechar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- RODAPÉ INSTITUCIONAL -->
   <footer class="app-footer">
     <div class="footer-container">
@@ -931,8 +1092,12 @@
               <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.2V10.9H6.46M7.83 6.25a1.62 1.62 0 1 0 0 3.24 1.62 1.62 0 0 0 0-3.24Z" />
             </svg>
           </a>
+          <button type="button" id="btn-footer-open-feedback" style="background:none; border:none; color:var(--locar-yellow); font-size:0.75rem; font-weight:700; cursor:pointer; text-decoration:underline; padding:0; margin-left:0.5rem;" title="Enviar sugestão ou relatar falha diretamente para Maikon Pinho">
+            📢 Relatar Falha ou Sugestão
+          </button>
         </div>
       </div>
+
       <div class="footer-norms">
         <span>NR-11</span>
         <span>NR-12</span>

@@ -16,6 +16,8 @@ import { appwriteClient } from './appwriteClient.js';
 import { escapeHTML, formatLocalDate, addDays } from './utils.js';
 import { authManager } from './modules/auth.js';
 import { CLIENT_TIERS, getClientTier, getAllClientTiers } from './data/clientTiers.js';
+import { FeedbackManager } from './modules/feedbackManager.js';
+
 
 // Estado global da interface
 const AppState = {
@@ -57,8 +59,10 @@ document.addEventListener('DOMContentLoaded', () => {
   initModals();
   initPCMSettings();
   initAIAssistantWidget();
+  initFeedbackSystem();
   initGlobalSystemApi();
 });
+
 
 function registerPWA() {
   if ('serviceWorker' in navigator) {
@@ -2674,13 +2678,19 @@ function switchLoaderTab(tabId) {
   const panes = {
     users: document.getElementById('loader-content-users'),
     fleet: document.getElementById('loader-content-fleet'),
+    feedback: document.getElementById('loader-content-feedback'),
     reset: document.getElementById('loader-content-reset')
   };
 
   Object.entries(panes).forEach(([k, el]) => {
     if (el) el.style.display = (k === tabId) ? 'block' : 'none';
   });
+
+  if (tabId === 'feedback') {
+    renderAdminFeedbackList();
+  }
 }
+
 
 function renderRegisteredUsersList() {
   const container = document.getElementById('container-registered-users-list');
@@ -2923,4 +2933,163 @@ function initAIAssistantWidget() {
 
   bindSuggestionChips();
 }
+
+/**
+ * ============================================================================
+ * SISTEMA DE INFORMATIVO DE FALHAS E SUGESTÕES AO ADMINISTRADOR GERAL
+ * ============================================================================
+ */
+function initFeedbackSystem() {
+  const btnHeader = document.getElementById('btn-open-feedback-modal');
+  const btnFooter = document.getElementById('btn-footer-open-feedback');
+  const modal = document.getElementById('modal-feedback');
+  const form = document.getElementById('form-submit-feedback');
+  const successPanel = document.getElementById('feedback-success-panel');
+  const btnRefreshAdmin = document.getElementById('btn-refresh-admin-feedback');
+
+  const openFeedbackModal = () => {
+    closeAllModals();
+    if (form) {
+      form.reset();
+      form.style.display = 'block';
+    }
+    if (successPanel) successPanel.style.display = 'none';
+
+    // Auto-preenche com dados do usuário logado se houver
+    const user = authManager.getCurrentUser();
+    const nameInput = document.getElementById('feedback-sender-name');
+    const contactInput = document.getElementById('feedback-sender-contact');
+
+    if (user && user.role !== 'none') {
+      if (nameInput) nameInput.value = user.name || '';
+      if (contactInput) contactInput.value = user.email || user.phone || '';
+    } else {
+      if (nameInput) nameInput.value = '';
+      if (contactInput) contactInput.value = '';
+    }
+
+    openModal('modal-feedback');
+  };
+
+  if (btnHeader) btnHeader.addEventListener('click', openFeedbackModal);
+  if (btnFooter) btnFooter.addEventListener('click', openFeedbackModal);
+
+  if (form) {
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const type = document.getElementById('feedback-type')?.value || 'falha';
+      const severity = document.getElementById('feedback-severity')?.value || 'media';
+      const moduleKey = document.getElementById('feedback-module')?.value || 'geral';
+      const senderName = document.getElementById('feedback-sender-name')?.value?.trim() || 'Colaborador';
+      const senderContact = document.getElementById('feedback-sender-contact')?.value?.trim() || '';
+      const subject = document.getElementById('feedback-subject')?.value?.trim() || '';
+      const description = document.getElementById('feedback-description')?.value?.trim() || '';
+
+      if (!subject || !description) {
+        showToast('Por favor, informe o título e a descrição do seu relato.', 'warning');
+        return;
+      }
+
+      const currentUser = authManager.getCurrentUser();
+      const senderRole = currentUser?.roleName || currentUser?.role || 'Modo Consulta';
+
+      const result = FeedbackManager.createFeedback({
+        type,
+        severity,
+        moduleKey,
+        subject,
+        description,
+        senderName,
+        senderEmail: senderContact.includes('@') ? senderContact : (currentUser?.email || ''),
+        senderPhone: !senderContact.includes('@') ? senderContact : (currentUser?.phone || ''),
+        senderRole
+      });
+
+      if (result.success) {
+        // Atualiza painel de sucesso
+        const idEl = document.getElementById('feedback-success-id');
+        if (idEl) idEl.textContent = result.report.id;
+
+        const linkMailto = document.getElementById('feedback-link-mailto');
+        if (linkMailto) linkMailto.href = result.emailPayload.mailtoUrl;
+
+        const linkWhatsApp = document.getElementById('feedback-link-whatsapp');
+        if (linkWhatsApp) linkWhatsApp.href = result.emailPayload.whatsappUrl;
+
+        const btnCopy = document.getElementById('btn-copy-feedback-text');
+        if (btnCopy) {
+          btnCopy.onclick = () => {
+            if (navigator.clipboard) {
+              navigator.clipboard.writeText(result.emailPayload.textBody);
+              showToast('Texto completo copiado para a área de transferência!', 'success');
+            }
+          };
+        }
+
+        form.style.display = 'none';
+        if (successPanel) successPanel.style.display = 'block';
+
+        // Dispara automaticamente o cliente de e-mail do sistema operacional
+        try {
+          window.location.href = result.emailPayload.mailtoUrl;
+        } catch (_) {}
+
+        updateAdminFeedbackCount();
+        showToast(`✓ Informativo ${result.report.id} enviado com sucesso ao Administrador!`, 'success');
+      }
+    });
+  }
+
+  if (btnRefreshAdmin) {
+    btnRefreshAdmin.addEventListener('click', () => {
+      renderAdminFeedbackList();
+      showToast('Lista de informativos atualizada.', 'info');
+    });
+  }
+
+  // Delegação de cliques para resolver / reabrir informativos
+  const adminContainer = document.getElementById('container-admin-feedback-list');
+  if (adminContainer) {
+    adminContainer.addEventListener('click', (e) => {
+      const resolveBtn = e.target.closest('.btn-feedback-resolve');
+      if (resolveBtn) {
+        const id = resolveBtn.getAttribute('data-id');
+        FeedbackManager.updateStatus(id, 'resolvido');
+        renderAdminFeedbackList();
+        showToast(`Informativo ${id} marcado como resolvido!`, 'success');
+        return;
+      }
+
+      const reopenBtn = e.target.closest('.btn-feedback-reopen');
+      if (reopenBtn) {
+        const id = reopenBtn.getAttribute('data-id');
+        FeedbackManager.updateStatus(id, 'pendente');
+        renderAdminFeedbackList();
+        showToast(`Informativo ${id} reaberto!`, 'info');
+        return;
+      }
+    });
+  }
+
+  updateAdminFeedbackCount();
+}
+
+function updateAdminFeedbackCount() {
+  const countEl = document.getElementById('count-admin-feedback');
+  if (countEl) {
+    const list = FeedbackManager.getReports();
+    const pending = list.filter(r => r.status !== 'resolvido').length;
+    countEl.textContent = pending;
+  }
+}
+
+function renderAdminFeedbackList() {
+  const container = document.getElementById('container-admin-feedback-list');
+  if (container) {
+    FeedbackManager.renderAdminList(container);
+    updateAdminFeedbackCount();
+  }
+}
+
 

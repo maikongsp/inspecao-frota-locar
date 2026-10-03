@@ -1139,7 +1139,9 @@
   height: 120px;
   cursor: crosshair;
   display: block;
+  touch-action: none;
 }
+
 
 /* ==========================================================================
    ORDENS DE SERVIÇO (MANUTENÇÃO)
@@ -1780,18 +1782,212 @@
   40% { transform: scale(1); opacity: 1; }
 }
 
+/* ==========================================================================
+   OTIMIZAÇÕES RESPONSIVAS COMPONENTIZADAS (TABLETS E SMARTPHONES)
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  /* Filtros e Busca */
+  .filters-toolbar {
+    padding: 0.85rem 1rem;
+    gap: 0.85rem;
+  }
+
+  .filters-group {
+    width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .filters-group::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  .filters-group::-webkit-scrollbar-thumb {
+    background: var(--locar-chumbo-border);
+    border-radius: 4px;
+  }
+
+  .search-box {
+    width: 100%;
+    min-width: 100%;
+  }
+
+  /* Painéis Analíticos & Grids */
+  .category-kpis-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  /* Wizard de Inspeção em Campo */
+  .inspection-stepper-header {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 0.85rem 1rem;
+  }
+
+  .stepper-nav {
+    min-width: 520px;
+    padding: 0.5rem 0.25rem;
+  }
+
+  .inspection-eq-bar {
+    padding: 0.75rem 1rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .eq-bar-left {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .inspection-body {
+    padding: 1rem;
+  }
+
+  /* Itens do Checklist */
+  .checklist-item-card {
+    padding: 1rem;
+  }
+
+  .item-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+  }
+
+  .item-actions-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .status-toggle-group {
+    width: 100%;
+    display: flex;
+  }
+
+  .status-toggle-group button {
+    flex: 1;
+    justify-content: center;
+    padding: 0.65rem 0.5rem;
+  }
+
+  .photo-controls-bar {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .photo-controls-bar button,
+  .photo-controls-bar label {
+    flex: 1;
+    text-align: center;
+    justify-content: center;
+  }
+
+  /* Rodapé do Wizard */
+  .inspection-footer-bar {
+    padding: 0.85rem 1rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  /* Modais no Mobile */
+  .modal-backdrop {
+    padding: 0.75rem;
+  }
+
+  .modal-container {
+    max-height: 94vh;
+    border-radius: var(--radius-md);
+  }
+
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    padding: 0.85rem 1rem;
+  }
+
+  /* Veredito e Assinatura */
+  .verdict-banner-approved,
+  .verdict-banner-rejected {
+    flex-direction: column;
+    text-align: center;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+
+  .signature-canvas {
+    max-width: 100%;
+    height: 130px;
+  }
+}
+
 @media (max-width: 480px) {
+  /* Grids de Frota e Métricas em Smartphones */
+  .fleet-grid {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
+
+  .kpis-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .category-status-breakdown {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.35rem;
+  }
+
+  .status-mini-card {
+    padding: 0.45rem 0.25rem;
+  }
+
+  .status-mini-label {
+    font-size: 0.62rem;
+  }
+
+  .status-mini-val {
+    font-size: 1.1rem;
+  }
+
+  .inspection-footer-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .inspection-footer-bar > div:last-child {
+    display: flex;
+    width: 100%;
+  }
+
+  .inspection-footer-bar > div:last-child button {
+    flex: 1;
+    justify-content: center;
+  }
+
+  /* IA Assistant FAB e Janela Flutuante em Telas Pequenas */
   .ai-assistant-fab {
     bottom: 16px;
     right: 16px;
     left: auto;
     padding: 0.55rem 0.9rem;
   }
+
   .ai-assistant-chatbox {
     bottom: 74px;
-    right: 12px;
-    left: auto;
-    width: calc(100vw - 24px);
-    height: 70vh;
+    right: 8px;
+    left: 8px;
+    width: calc(100vw - 16px);
+    height: 72vh;
+    max-height: 540px;
   }
 }
+
