@@ -18,61 +18,55 @@ const AUDIT_STORAGE_KEY = 'locar_audit_log_v1';
 const LOCKOUT_STORAGE_KEY = 'locar_auth_lockout_v1';
 
 // Hash SHA-256 oficial do PIN padrão '1234'
-const DEFAULT_PIN_HASH = '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4';
+export const DEFAULT_PIN_HASH = '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4';
 
-// Usuários corporativos padrão para operação em campo (Betim/MG)
-const DEFAULT_USERS = [
-  {
-    id: 'usr_insp_01',
-    email: 'inspetor.betim@locar.com.br',
-    registration: 'LOC-7842',
-    name: 'Carlos Mendes',
-    role: 'inspector',
-    roleName: 'Inspetor Técnico de Campo',
-    phone: '(31) 98844-1234',
-    pinHash: DEFAULT_PIN_HASH
+// Nomes e descrições oficiais dos perfis operacionais da Locar
+export const ROLE_DEFINITIONS = {
+  inspector: {
+    name: 'Inspetor Técnico de Campo',
+    icon: '👷',
+    description: 'Vistorias, laudos de checklist, fotos periciais e assinaturas técnicas'
   },
-  {
-    id: 'usr_pcm_01',
-    email: 'pcm.betim@locar.com.br',
-    registration: 'LOC-5510',
-    name: 'Eng. Roberto Albuquerque',
-    role: 'pcm',
-    roleName: 'Gestor PCM / Manutenção',
-    phone: '(31) 98765-4321',
-    pinHash: DEFAULT_PIN_HASH
+  pcm: {
+    name: 'Gestor PCM / Manutenção',
+    icon: '⚙️',
+    description: 'Gestão de Solicitações de Serviço, ordens de reparo e liberação de ativos'
   },
-  {
-    id: 'usr_mgr_01',
-    email: 'gestor.frota@locar.com.br',
-    registration: 'LOC-3001',
-    name: 'Mariana Duarte',
-    role: 'manager',
-    roleName: 'Gestão de frota',
-    phone: '(31) 99123-9876',
-    pinHash: DEFAULT_PIN_HASH
+  manager: {
+    name: 'Gestão de frota',
+    icon: '📊',
+    description: 'Cadastro de equipamentos, auditoria, exportações e controle geral'
   },
-  {
-    id: 'usr_com_01',
-    email: 'comercial.betim@locar.com.br',
-    registration: 'LOC-4200',
-    name: 'Juliana Vasconcelos',
-    role: 'commercial',
-    roleName: 'Comercial',
-    phone: '(31) 98321-7788',
-    pinHash: DEFAULT_PIN_HASH
+  commercial: {
+    name: 'Comercial',
+    icon: '💼',
+    description: 'Gestão de reservas, propostas comerciais e ativação de locações'
   },
-  {
-    id: 'usr_adm_01',
-    email: 'admin@locar.com.br',
-    registration: 'LOC-0001',
-    name: 'Administrador Corporativo',
-    role: 'admin',
-    roleName: 'Administrador Geral QSMS',
-    phone: '(31) 99999-0000',
-    pinHash: DEFAULT_PIN_HASH
+  admin: {
+    name: 'Administrador Geral QSMS',
+    icon: '🛡️',
+    description: 'Acesso irrestrito a todos os módulos operacionais, de segurança e auditoria'
   }
-];
+};
+
+export function getRoleName(role) {
+  const norm = normalizeRole(role);
+  return ROLE_DEFINITIONS[norm]?.name || 'Operador Corporativo';
+}
+
+export function normalizeRole(role) {
+  if (!role) return 'inspector';
+  const clean = String(role).toLowerCase().trim();
+  if (clean.includes('insp') || clean.includes('campo')) return 'inspector';
+  if (clean.includes('pcm') || clean.includes('manut')) return 'pcm';
+  if (clean.includes('gest') || clean.includes('frot') || clean.includes('manag')) return 'manager';
+  if (clean.includes('comerc') || clean.includes('comm')) return 'commercial';
+  if (clean.includes('adm') || clean.includes('qsms') || clean.includes('geral')) return 'admin';
+  return clean;
+}
+
+// Em operação real, inicia com lista limpa pronta para carga oficial de colaboradores
+const DEFAULT_USERS = [];
 
 export class AuthManager {
   constructor() {
@@ -87,30 +81,113 @@ export class AuthManager {
       const stored = localStorage.getItem(USERS_STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        let updated = false;
-        // Migração automática de PIN em texto plano legado para hash criptográfico SHA-256
-        parsed.forEach(u => {
-          if (!u.pinHash && u.pin) {
-            if (u.pin === '1234') {
-              u.pinHash = DEFAULT_PIN_HASH;
+        if (Array.isArray(parsed)) {
+          let updated = false;
+          parsed.forEach(u => {
+            if (!u.pinHash && u.pin) {
+              if (u.pin === '1234') {
+                u.pinHash = DEFAULT_PIN_HASH;
+              }
+              delete u.pin;
+              updated = true;
+            } else if (u.pin && u.pinHash) {
+              delete u.pin;
+              updated = true;
             }
-            delete u.pin;
-            updated = true;
-          } else if (u.pin && u.pinHash) {
-            delete u.pin;
-            updated = true;
+          });
+          if (updated) {
+            localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(parsed));
           }
-        });
-        if (updated) {
-          localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(parsed));
+          return parsed;
         }
-        return parsed;
       }
     } catch (e) {
       console.warn('Erro ao carregar usuários cadastrados:', e);
     }
-    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(DEFAULT_USERS));
     return DEFAULT_USERS;
+  }
+
+  setRegisteredUsers(users) {
+    if (!Array.isArray(users)) return false;
+    try {
+      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+      this.logAudit('USERS_UPDATED', `Base de usuários atualizada com ${users.length} operador(es).`);
+      return true;
+    } catch (e) {
+      console.error('Erro ao salvar usuários registrados:', e);
+      return false;
+    }
+  }
+
+  /**
+   * Importa e cadastra uma lista oficial de usuários com perfis e PINs com hash SHA-256
+   * @param {Array<object>} usersList 
+   * @param {boolean} replaceExisting Se true, substitui a lista inteira
+   */
+  async importUsers(usersList, replaceExisting = true) {
+    if (!Array.isArray(usersList)) {
+      throw new Error('A lista de usuários deve ser um array de colaboradores.');
+    }
+
+    const current = replaceExisting ? [] : this.getRegisteredUsers();
+    let importedCount = 0;
+
+    for (let i = 0; i < usersList.length; i++) {
+      const raw = usersList[i];
+      if (!raw || (!raw.name && !raw.email && !raw.registration)) continue;
+
+      const normRole = normalizeRole(raw.role || raw.perfil || 'inspector');
+      const roleMeta = ROLE_DEFINITIONS[normRole] || ROLE_DEFINITIONS.inspector;
+
+      let pinHash = raw.pinHash;
+      if (!pinHash) {
+        const rawPin = raw.pin || raw.senha || '1234';
+        pinHash = await generateAuditHash(String(rawPin).trim());
+      }
+
+      const userObj = {
+        id: raw.id || `usr_${normRole}_${Date.now()}_${i + 1}`,
+        registration: (raw.registration || raw.matricula || `LOC-${String(1000 + i)}`).toUpperCase().trim(),
+        name: (raw.name || raw.nome || 'Operador Locar').trim(),
+        email: (raw.email || raw.login || '').toLowerCase().trim(),
+        role: normRole,
+        roleName: raw.roleName || raw.cargo || roleMeta.name,
+        phone: raw.phone || raw.telefone || '',
+        pinHash
+      };
+
+      // Substitui se já existir mesma matrícula ou e-mail
+      const existingIdx = current.findIndex(u => 
+        (u.registration && u.registration === userObj.registration) ||
+        (u.email && userObj.email && u.email === userObj.email)
+      );
+
+      if (existingIdx !== -1) {
+        current[existingIdx] = userObj;
+      } else {
+        current.push(userObj);
+      }
+      importedCount++;
+    }
+
+    this.setRegisteredUsers(current);
+    return { success: true, count: importedCount, totalUsers: current.length };
+  }
+
+  /**
+   * Limpa todos os usuários cadastrados e encerra sessão
+   */
+  clearUsers() {
+    try {
+      localStorage.removeItem(USERS_STORAGE_KEY);
+      this.failedAttempts.clear();
+      this.logout();
+      this.logAudit('USERS_CLEARED', 'Base de usuários foi completamente resetada para entrada em operação.');
+      return true;
+    } catch (e) {
+      console.warn('Erro ao limpar usuários:', e);
+      return false;
+    }
   }
 
   loadSession() {
@@ -240,6 +317,24 @@ export class AuthManager {
   quickSwitchUser(role) {
     const users = this.getRegisteredUsers();
     const user = users.find(u => u.role === role);
+    if (user) {
+      const sessionUser = { ...user, authSource: 'quick_switch' };
+      delete sessionUser.pin;
+      delete sessionUser.pinHash;
+      this.saveSession(sessionUser);
+      return sessionUser;
+    }
+    return null;
+  }
+
+  quickSwitchUserById(idOrReg) {
+    const users = this.getRegisteredUsers();
+    const clean = String(idOrReg).trim().toLowerCase();
+    const user = users.find(u => 
+      u.id?.toLowerCase() === clean || 
+      u.registration?.toLowerCase() === clean ||
+      u.email?.toLowerCase() === clean
+    );
     if (user) {
       const sessionUser = { ...user, authSource: 'quick_switch' };
       delete sessionUser.pin;

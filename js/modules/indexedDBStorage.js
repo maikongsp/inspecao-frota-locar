@@ -158,6 +158,35 @@ export class IndexedDBStorage {
       return 0;
     }
   }
+
+  /**
+   * Limpa todas as inspeções do IndexedDB (para entrada em operação)
+   * @returns {Promise<boolean>}
+   */
+  async clearAll() {
+    try {
+      const db = await this.init();
+      if (!db) return false;
+
+      return new Promise((resolve) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.clear();
+
+        req.onsuccess = () => {
+          console.log('[IndexedDB] Todas as inspeções e evidências foram limpas com sucesso.');
+          resolve(true);
+        };
+        req.onerror = (e) => {
+          console.warn('[IndexedDB] Erro ao limpar inspeções:', e.target.error);
+          resolve(false);
+        };
+      });
+    } catch (err) {
+      console.warn('[IndexedDB] Falha ao executar clearAll:', err);
+      return false;
+    }
+  }
 }
 
 export const idbStorage = new IndexedDBStorage();

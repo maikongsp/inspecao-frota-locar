@@ -35,9 +35,18 @@ const AppState = {
 
 // --- INICIALIZAÇÃO DA APLICAÇÃO ---
 document.addEventListener('DOMContentLoaded', () => {
+  // Purga compulsória de dados de teste e usuários fictícios para entrada em operação
+  const PROD_KEY = 'locar_prod_cleaned_v2';
+  if (localStorage.getItem(PROD_KEY) !== 'ready') {
+    Storage.clearAllTestData();
+    authManager.clearUsers();
+    localStorage.setItem(PROD_KEY, 'ready');
+  }
+
   registerPWA();
   initClock();
   initAuthSystem();
+  initOperationalDataLoader();
   initCloudSyncSystem();
   initNavigation();
   initFleetView();
@@ -47,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initNewEquipmentForm();
   initModals();
   initPCMSettings();
+  initGlobalSystemApi();
 });
 
 function registerPWA() {
@@ -1960,12 +1970,14 @@ function showToast(message, type = 'info') {
 // --- SISTEMA DE AUTENTICAÇÃO E PERFIS CORPORATIVOS (RBAC) ---
 function initAuthSystem() {
   updateAuthUI();
+  renderQuickRoleButtons();
 
   const openAuthModalClean = () => {
     pendingAuthAction = null;
     const noticeEl = document.getElementById('auth-action-notice');
     if (noticeEl) noticeEl.style.display = 'none';
     openModal('modal-auth-control');
+    renderQuickRoleButtons();
     renderPermissionsBox();
   };
 
@@ -2024,25 +2036,6 @@ function initAuthSystem() {
       }
     });
   }
-
-  // Botões de seleção rápida de perfil homologado
-  document.querySelectorAll('.btn-quick-role').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const role = btn.getAttribute('data-role');
-      const switched = authManager.quickSwitchUser(role);
-      if (switched) {
-        updateAuthUI();
-        renderPermissionsBox();
-        showToast(`Perfil ativado: ${switched.name} (${switched.roleName})`, 'success');
-        closeAllModals();
-        if (pendingAuthAction) {
-          const actionToRun = pendingAuthAction;
-          pendingAuthAction = null;
-          actionToRun();
-        }
-      }
-    });
-  });
 
   // Formulário de Login Corporativo com Matrícula e PIN / Senha Appwrite
   const formLogin = document.getElementById('form-corporate-login');
@@ -2297,4 +2290,398 @@ export function executeForensicVerification(query) {
       </div>
     `;
   }
+}
+
+// --- GESTÃO OPERACIONAL DE USUÁRIOS E ATUALIZAÇÃO DE FROTA ---
+export function renderQuickRoleButtons() {
+  const container = document.getElementById('quick-role-buttons');
+  if (!container) return;
+
+  const users = authManager.getRegisteredUsers();
+  if (!users || users.length === 0) {
+    container.innerHTML = `
+      <div style="grid-column: 1 / -1; background:rgba(245,158,11,0.08); border:1px dashed #F59E0B; border-radius:var(--radius-sm); padding:0.85rem; text-align:center;">
+        <span style="font-size:1.3rem;">🚀</span>
+        <strong style="display:block; color:#FDE68A; font-size:0.82rem; margin:4px 0 2px;">Sistema Preparado para Entrada em Operação</strong>
+        <span style="font-size:0.75rem; color:#CBD5E1; display:block; margin-bottom:8px; line-height:1.4;">
+          Todos os usuários fictícios foram limpos. Carregue a lista de operadores oficiais com o perfil adequado para cada um.
+        </span>
+        <button type="button" class="btn btn-primary" id="btn-open-data-loader-from-auth" style="font-size:0.75rem; padding:0.35rem 0.75rem; margin:0 auto;">
+          📥 Carregar Usuários Oficiais
+        </button>
+      </div>
+    `;
+    const btnFromAuth = document.getElementById('btn-open-data-loader-from-auth');
+    if (btnFromAuth) {
+      btnFromAuth.addEventListener('click', () => {
+        closeAllModals();
+        openModal('modal-operational-data-loader');
+      });
+    }
+    return;
+  }
+
+  const roleIcons = {
+    inspector: '👷',
+    pcm: '⚙️',
+    manager: '📊',
+    commercial: '💼',
+    admin: '🛡️'
+  };
+
+  container.innerHTML = users.map(u => `
+    <button type="button" class="btn btn-secondary btn-quick-user-select" data-user-id="${escapeHTML(u.id || u.registration)}" style="justify-content:flex-start; text-align:left; padding:0.55rem 0.7rem;">
+      <span style="font-size:1.2rem; margin-right:0.4rem;">${roleIcons[u.role] || '👤'}</span>
+      <div style="overflow:hidden;">
+        <strong style="display:block; font-size:0.82rem; color:#FFFFFF; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${escapeHTML(u.name)}</strong>
+        <span style="font-size:0.68rem; color:var(--locar-yellow); display:block;">${escapeHTML(u.roleName || u.role)}</span>
+        <span style="font-size:0.65rem; color:var(--text-muted); display:block;">Mat: ${escapeHTML(u.registration || 'N/A')}</span>
+      </div>
+    </button>
+  `).join('');
+
+  container.querySelectorAll('.btn-quick-user-select').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const uId = btn.getAttribute('data-user-id');
+      const switched = authManager.quickSwitchUserById(uId);
+      if (switched) {
+        updateAuthUI();
+        renderPermissionsBox();
+        showToast(`Perfil ativado: ${switched.name} (${switched.roleName})`, 'success');
+        closeAllModals();
+        if (pendingAuthAction) {
+          const actionToRun = pendingAuthAction;
+          pendingAuthAction = null;
+          actionToRun();
+        }
+      }
+    });
+  });
+}
+
+function initOperationalDataLoader() {
+  const btnOpen = document.getElementById('btn-open-data-loader');
+  const btnQuick = document.getElementById('btn-quick-open-data-loader');
+  
+  const openLoader = (initialTab = 'users') => {
+    closeAllModals();
+    openModal('modal-operational-data-loader');
+    switchLoaderTab(initialTab);
+    renderRegisteredUsersList();
+  };
+
+  if (btnOpen) btnOpen.addEventListener('click', () => openLoader('users'));
+  if (btnQuick) btnQuick.addEventListener('click', () => openLoader('users'));
+
+  // Abas do modal de carga
+  document.querySelectorAll('.tab-loader-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.getAttribute('data-loader-tab');
+      switchLoaderTab(target);
+    });
+  });
+
+  // Exemplo de Usuários JSON
+  const btnExUsers = document.getElementById('btn-example-users-json');
+  if (btnExUsers) {
+    btnExUsers.addEventListener('click', () => {
+      const sample = [
+        {
+          name: "João da Silva",
+          registration: "LOC-1010",
+          email: "joao.silva@locar.com.br",
+          role: "inspector",
+          phone: "(31) 98800-1122",
+          pin: "1234"
+        },
+        {
+          name: "Maria Fernandes",
+          registration: "LOC-2020",
+          email: "maria.fernandes@locar.com.br",
+          role: "pcm",
+          phone: "(31) 98800-3344",
+          pin: "1234"
+        },
+        {
+          name: "Lucas Rocha",
+          registration: "LOC-3030",
+          email: "lucas.rocha@locar.com.br",
+          role: "manager",
+          phone: "(31) 98800-5566",
+          pin: "1234"
+        },
+        {
+          name: "Patricia Souza",
+          registration: "LOC-4040",
+          email: "patricia.souza@locar.com.br",
+          role: "commercial",
+          phone: "(31) 98800-7788",
+          pin: "1234"
+        },
+        {
+          name: "Gestor Geral",
+          registration: "LOC-5050",
+          email: "gestor.geral@locar.com.br",
+          role: "admin",
+          phone: "(31) 98800-9900",
+          pin: "1234"
+        }
+      ];
+      const ta = document.getElementById('textarea-import-users');
+      if (ta) ta.value = JSON.stringify(sample, null, 2);
+    });
+  }
+
+  // Importar Usuários Oficiais
+  const btnSubmitUsers = document.getElementById('btn-submit-import-users');
+  if (btnSubmitUsers) {
+    btnSubmitUsers.addEventListener('click', async () => {
+      const ta = document.getElementById('textarea-import-users');
+      const text = ta?.value?.trim();
+      if (!text) {
+        showToast('Cole a lista de usuários em formato JSON ou linhas CSV.', 'warning');
+        return;
+      }
+
+      let parsedList = [];
+      try {
+        if (text.startsWith('[') || text.startsWith('{')) {
+          const raw = JSON.parse(text);
+          parsedList = Array.isArray(raw) ? raw : [raw];
+        } else {
+          // Parse CSV
+          const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+          lines.forEach((line, idx) => {
+            const sep = line.includes(';') ? ';' : (line.includes(',') ? ',' : '\t');
+            const parts = line.split(sep).map(p => p.trim().replace(/^["']|["']$/g, ''));
+            if (idx === 0 && (parts[0].toLowerCase().includes('nome') || parts[0].toLowerCase().includes('name'))) return;
+            if (parts.length >= 2) {
+              parsedList.push({
+                name: parts[0] || 'Operador',
+                registration: parts[1] || `LOC-${1000 + idx}`,
+                email: parts[2] || '',
+                role: parts[3] || 'inspector',
+                phone: parts[4] || '',
+                pin: parts[5] || '1234'
+              });
+            }
+          });
+        }
+      } catch (errParse) {
+        showToast('Erro ao interpretar dados de usuários. Verifique a formatação: ' + errParse.message, 'danger');
+        return;
+      }
+
+      if (parsedList.length === 0) {
+        showToast('Nenhum colaborador válido identificado na lista.', 'warning');
+        return;
+      }
+
+      showToast('Cadastrando usuários oficiais e gerando credenciais seguras...', 'info');
+      const res = await authManager.importUsers(parsedList, true);
+      renderRegisteredUsersList();
+      renderQuickRoleButtons();
+      updateAuthUI();
+      renderPermissionsBox();
+      showToast(`✓ Sucesso! ${res.count} usuário(s) oficial(is) cadastrado(s) para operação.`, 'success');
+      if (ta) ta.value = '';
+    });
+  }
+
+  // Zerar Usuários
+  const btnClearUsers = document.getElementById('btn-clear-all-users');
+  if (btnClearUsers) {
+    btnClearUsers.addEventListener('click', () => {
+      if (confirm('Deseja realmente limpar todos os usuários cadastrados?')) {
+        authManager.clearUsers();
+        renderRegisteredUsersList();
+        renderQuickRoleButtons();
+        updateAuthUI();
+        renderPermissionsBox();
+        showToast('Lista de usuários foi zerada.', 'info');
+      }
+    });
+  }
+
+  // Exemplo de Atualização de Frota
+  const btnExFleet = document.getElementById('btn-example-fleet-json');
+  if (btnExFleet) {
+    btnExFleet.addEventListener('click', () => {
+      const sample = [
+        { tag: "40/100/36", status: "disponivel" },
+        { tag: "40/250/32", status: "locada", client: "Vale S.A.", clientTier: "AA", currentContract: "Vale (Contrato Vigente)" },
+        { tag: "40/100/48", status: "manutencao", notes: "Oficina Betim - Preventiva" }
+      ];
+      const ta = document.getElementById('textarea-import-fleet');
+      if (ta) ta.value = JSON.stringify(sample, null, 2);
+    });
+  }
+
+  // Importar / Atualizar Frota
+  const btnSubmitFleet = document.getElementById('btn-submit-import-fleet');
+  if (btnSubmitFleet) {
+    btnSubmitFleet.addEventListener('click', () => {
+      const ta = document.getElementById('textarea-import-fleet');
+      const text = ta?.value?.trim();
+      if (!text) {
+        showToast('Cole os dados de atualização da frota em formato JSON ou CSV.', 'warning');
+        return;
+      }
+
+      let updates = [];
+      try {
+        if (text.startsWith('[') || text.startsWith('{')) {
+          const raw = JSON.parse(text);
+          updates = Array.isArray(raw) ? raw : [raw];
+        } else {
+          // Parse CSV
+          const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+          lines.forEach((line, idx) => {
+            const sep = line.includes(';') ? ';' : (line.includes(',') ? ',' : '\t');
+            const parts = line.split(sep).map(p => p.trim().replace(/^["']|["']$/g, ''));
+            if (idx === 0 && (parts[0].toLowerCase().includes('tag') || parts[0].toLowerCase().includes('prefixo'))) return;
+            if (parts.length >= 2) {
+              updates.push({
+                tag: parts[0],
+                status: parts[1],
+                client: parts[2] || undefined,
+                clientTier: parts[3] || undefined
+              });
+            }
+          });
+        }
+      } catch (errParse) {
+        showToast('Erro ao interpretar dados da frota. Verifique a formatação: ' + errParse.message, 'danger');
+        return;
+      }
+
+      const res = Storage.updateFleetBatch(updates);
+      if (res.success) {
+        initFleetView();
+        showToast(`✓ Sucesso! Status de ${res.updatedCount} equipamento(s) atualizado(s) na frota oficial de Betim.`, 'success');
+        if (ta) ta.value = '';
+      } else {
+        showToast(res.error || 'Falha ao atualizar frota.', 'danger');
+      }
+    });
+  }
+
+  // Purga Total / Reset Operacional
+  const btnClean = document.getElementById('btn-action-full-clean');
+  if (btnClean) {
+    btnClean.addEventListener('click', async () => {
+      if (confirm('Atenção: Todos os dados de teste (laudos, vistorias, solicitações do PCM e usuários fictícios) serão apagados para entrada em operação. Deseja prosseguir?')) {
+        authManager.clearUsers();
+        await Storage.clearAllTestData();
+        renderRegisteredUsersList();
+        renderQuickRoleButtons();
+        updateAuthUI();
+        renderPermissionsBox();
+        initFleetView();
+        initPCMServiceRequestsView();
+        initHistoryView();
+        showToast('✓ Purga concluída! O sistema está pronto para a carga dos dados oficiais de operação.', 'success');
+      }
+    });
+  }
+}
+
+function switchLoaderTab(tabId) {
+  document.querySelectorAll('.tab-loader-btn').forEach(b => {
+    if (b.getAttribute('data-loader-tab') === tabId) {
+      b.classList.remove('btn-secondary');
+      b.classList.add('btn-primary');
+    } else {
+      b.classList.remove('btn-primary');
+      b.classList.add('btn-secondary');
+    }
+  });
+
+  const panes = {
+    users: document.getElementById('loader-content-users'),
+    fleet: document.getElementById('loader-content-fleet'),
+    reset: document.getElementById('loader-content-reset')
+  };
+
+  Object.entries(panes).forEach(([k, el]) => {
+    if (el) el.style.display = (k === tabId) ? 'block' : 'none';
+  });
+}
+
+function renderRegisteredUsersList() {
+  const container = document.getElementById('container-registered-users-list');
+  const countEl = document.getElementById('count-registered-users');
+  if (!container) return;
+
+  const users = authManager.getRegisteredUsers();
+  if (countEl) countEl.textContent = users.length;
+
+  if (!users || users.length === 0) {
+    container.innerHTML = `
+      <div style="text-align:center; padding:1rem; color:var(--text-muted); font-size:0.8rem;">
+        Nenhum usuário cadastrado. Importe a lista de colaboradores acima.
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <table style="width:100%; font-size:0.75rem; text-align:left; border-collapse:collapse; color:#E2E8F0;">
+      <thead>
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.1); color:var(--text-muted);">
+          <th style="padding:4px 6px;">Nome</th>
+          <th style="padding:4px 6px;">Matrícula</th>
+          <th style="padding:4px 6px;">Perfil</th>
+          <th style="padding:4px 6px;">E-mail</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${users.map(u => `
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+            <td style="padding:4px 6px; font-weight:600; color:#FFF;">${escapeHTML(u.name)}</td>
+            <td style="padding:4px 6px; color:var(--locar-yellow); font-family:monospace;">${escapeHTML(u.registration || '-')}</td>
+            <td style="padding:4px 6px;">${escapeHTML(u.roleName || u.role)}</td>
+            <td style="padding:4px 6px; color:var(--text-muted);">${escapeHTML(u.email || '-')}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+function initGlobalSystemApi() {
+  if (typeof window === 'undefined') return;
+
+  window.locarSystem = {
+    clearAllTestData: async () => {
+      authManager.clearUsers();
+      await Storage.clearAllTestData();
+      renderQuickRoleButtons();
+      renderRegisteredUsersList();
+      updateAuthUI();
+      renderPermissionsBox();
+      initFleetView();
+      initPCMServiceRequestsView();
+      initHistoryView();
+      showToast('✓ Purga concluída! Todos os dados e usuários de teste foram limpos.', 'success');
+      return true;
+    },
+    importUsers: async (usersList, replace = true) => {
+      const res = await authManager.importUsers(usersList, replace);
+      renderRegisteredUsersList();
+      renderQuickRoleButtons();
+      updateAuthUI();
+      renderPermissionsBox();
+      showToast(`✓ ${res.count} usuário(s) oficial(is) carregado(s) com sucesso!`, 'success');
+      return res;
+    },
+    updateFleetStatus: (statusList) => {
+      const res = Storage.updateFleetBatch(statusList);
+      initFleetView();
+      showToast(`✓ Status de ${res.updatedCount} equipamento(s) atualizado(s) na frota!`, 'success');
+      return res;
+    },
+    getFleet: () => Storage.getFleet(),
+    getRegisteredUsers: () => authManager.getRegisteredUsers()
+  };
 }

@@ -52,6 +52,10 @@
           </button>
         </div>
 
+        <button type="button" class="btn btn-sm btn-secondary" id="btn-open-data-loader" style="border-color:var(--locar-yellow); color:#FFF; font-weight:600;" title="Carga de Usuários e Atualização de Status da Frota">
+          📥 Carga Operacional
+        </button>
+
         <button type="button" class="btn btn-sm btn-secondary" id="btn-open-verify-modal" title="Conferir autenticidade de laudo pericial por Hash SHA-256 ou QR Code">
           🔍 Validar Laudo
         </button>
@@ -625,45 +629,16 @@
 
         <!-- SELEÇÃO RÁPIDA DE PERFIS HOMOLOGADOS EM CAMPO -->
         <div style="margin-bottom:1.25rem;">
-          <label style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; display:block; margin-bottom:0.5rem;">
-            Perfis Corporativos Homologados:
-          </label>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;" id="quick-role-buttons">
-            <button type="button" class="btn btn-secondary btn-quick-role" data-role="inspector" style="justify-content:flex-start; text-align:left; padding:0.6rem 0.75rem;">
-              <span style="font-size:1.2rem; margin-right:0.4rem;">👷</span>
-              <div>
-                <strong style="display:block; font-size:0.82rem; color:#FFFFFF;">Inspetor de Campo</strong>
-                <span style="font-size:0.68rem; color:var(--text-muted);">Vistorias & Assinatura</span>
-              </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+            <label style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">
+              Perfis Corporativos Homologados:
+            </label>
+            <button type="button" id="btn-quick-open-data-loader" style="background:none; border:none; color:var(--locar-yellow); font-size:0.75rem; cursor:pointer; text-decoration:underline;">
+              + Gerenciar / Carregar Usuários
             </button>
-            <button type="button" class="btn btn-secondary btn-quick-role" data-role="commercial" style="justify-content:flex-start; text-align:left; padding:0.6rem 0.75rem;">
-              <span style="font-size:1.2rem; margin-right:0.4rem;">💼</span>
-              <div>
-                <strong style="display:block; font-size:0.82rem; color:#FFFFFF;">Comercial</strong>
-                <span style="font-size:0.68rem; color:var(--text-muted);">Reservas & Contratos</span>
-              </div>
-            </button>
-            <button type="button" class="btn btn-secondary btn-quick-role" data-role="pcm" style="justify-content:flex-start; text-align:left; padding:0.6rem 0.75rem;">
-              <span style="font-size:1.2rem; margin-right:0.4rem;">⚙️</span>
-              <div>
-                <strong style="display:block; font-size:0.82rem; color:#FFFFFF;">Gestor PCM</strong>
-                <span style="font-size:0.68rem; color:var(--text-muted);">Ordens de Serviço</span>
-              </div>
-            </button>
-            <button type="button" class="btn btn-secondary btn-quick-role" data-role="manager" style="justify-content:flex-start; text-align:left; padding:0.6rem 0.75rem;">
-              <span style="font-size:1.2rem; margin-right:0.4rem;">📊</span>
-              <div>
-                <strong style="display:block; font-size:0.82rem; color:#FFFFFF;">Gestão de frota</strong>
-                <span style="font-size:0.68rem; color:var(--text-muted);">Cadastros & Exportação</span>
-              </div>
-            </button>
-            <button type="button" class="btn btn-secondary btn-quick-role" data-role="admin" style="justify-content:flex-start; text-align:left; padding:0.6rem 0.75rem;">
-              <span style="font-size:1.2rem; margin-right:0.4rem;">🛡️</span>
-              <div>
-                <strong style="display:block; font-size:0.82rem; color:#FFFFFF;">Administrador</strong>
-                <span style="font-size:0.68rem; color:var(--text-muted);">Acesso Global</span>
-              </div>
-            </button>
+          </div>
+          <div id="quick-role-buttons" style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
+            <!-- Renderizado dinamicamente pelo AuthManager (Usuários Oficiais) -->
           </div>
         </div>
 
@@ -822,6 +797,123 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- MODAL 11: CARGA DE DADOS OPERACIONAIS & GERENCIAMENTO DE TRANSIÇÃO -->
+  <div class="modal-backdrop" id="modal-operational-data-loader">
+    <div class="modal-container" style="max-width:700px;">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:0.5rem;">
+          <span style="font-size:1.3rem;">📥</span>
+          <div>
+            <h3 class="modal-title">Carga de Dados Operacionais & Transição</h3>
+            <span style="font-size:0.75rem; color:var(--text-muted); display:block;">Entrada em Operação • Base Oficial Locar Betim</span>
+          </div>
+        </div>
+        <button type="button" class="btn-close-modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- ABAS INTERNAS DO MODAL -->
+        <div style="display:flex; gap:0.5rem; border-bottom:1px solid var(--locar-chumbo-border); padding-bottom:0.75rem; margin-bottom:1rem;">
+          <button type="button" class="btn btn-sm btn-primary tab-loader-btn" data-loader-tab="users" id="tab-btn-loader-users">
+            👥 1. Carga de Usuários & Perfis
+          </button>
+          <button type="button" class="btn btn-sm btn-secondary tab-loader-btn" data-loader-tab="fleet" id="tab-btn-loader-fleet">
+            🚜 2. Atualizar Status das Frotas
+          </button>
+          <button type="button" class="btn btn-sm btn-secondary tab-loader-btn" data-loader-tab="reset" id="tab-btn-loader-reset" style="color:#EF4444;">
+            🧹 3. Reset / Limpeza
+          </button>
+        </div>
+
+        <!-- ABA 1: CARGA DE USUÁRIOS -->
+        <div id="loader-content-users" class="loader-tab-pane">
+          <p style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:0.75rem;">
+            Cole abaixo a lista oficial de usuários e colaboradores com seus respectivos perfis operacionais (em formato <strong>JSON</strong> ou <strong>CSV</strong>).
+          </p>
+
+          <div style="background:var(--locar-chumbo-surface); padding:0.65rem 0.85rem; border-radius:var(--radius-sm); border:1px solid var(--locar-chumbo-border); margin-bottom:0.75rem; font-size:0.75rem; color:var(--text-muted);">
+            <strong style="color:var(--locar-yellow); display:block; margin-bottom:2px;">Perfis Suportados:</strong>
+            <code>inspector</code> (Inspetor de Campo), <code>pcm</code> (PCM / Manutenção), <code>manager</code> (Gestão de Frota), <code>commercial</code> (Comercial), <code>admin</code> (Administrador QSMS).
+          </div>
+
+          <div style="margin-bottom:0.75rem;">
+            <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">
+              Lista de Usuários (JSON ou CSV):
+            </label>
+            <textarea id="textarea-import-users" class="search-input" rows="8" style="width:100%; border-radius:var(--radius-md); font-family:monospace; font-size:0.78rem; line-height:1.4;" placeholder='[&#10;  {&#10;    "name": "Nome do Colaborador",&#10;    "registration": "LOC-1234",&#10;    "email": "colaborador@locar.com.br",&#10;    "role": "inspector",&#10;    "phone": "(31) 99999-9999",&#10;    "pin": "1234"&#10;  }&#10;]'></textarea>
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:1rem;">
+            <button type="button" class="btn btn-sm btn-secondary" id="btn-example-users-json">
+              Exemplo JSON
+            </button>
+            <button type="button" class="btn btn-primary" id="btn-submit-import-users">
+              💾 Processar & Salvar Usuários Oficiais
+            </button>
+          </div>
+
+          <!-- LISTA ATUAL DE USUÁRIOS REGISTRADOS -->
+          <div style="border-top:1px solid var(--locar-chumbo-border); padding-top:0.75rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+              <strong style="font-size:0.8rem; color:#FFF;">Usuários Oficiais Cadastrados (<span id="count-registered-users">0</span>):</strong>
+              <button type="button" class="btn btn-sm btn-danger" id="btn-clear-all-users" style="padding:0.2rem 0.5rem; font-size:0.7rem;">
+                Zerar Usuários
+              </button>
+            </div>
+            <div id="container-registered-users-list" style="max-height:180px; overflow-y:auto; background:var(--locar-chumbo-surface); border-radius:var(--radius-sm); border:1px solid var(--locar-chumbo-border); padding:0.5rem;">
+              <!-- Preenchido via JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- ABA 2: ATUALIZAR STATUS DAS FROTAS -->
+        <div id="loader-content-fleet" class="loader-tab-pane" style="display:none;">
+          <p style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:0.75rem;">
+            Atualize em lote o status operacional, horímetro, clientes e contratos da frota (273 equipamentos de Betim).
+          </p>
+
+          <div style="background:var(--locar-chumbo-surface); padding:0.65rem 0.85rem; border-radius:var(--radius-sm); border:1px solid var(--locar-chumbo-border); margin-bottom:0.75rem; font-size:0.75rem; color:var(--text-muted);">
+            <strong style="color:var(--locar-yellow); display:block; margin-bottom:2px;">Status Válidos:</strong>
+            <code>disponivel</code> • <code>locada</code> • <code>manutencao</code> • <code>reservada</code> • <code>bloqueado</code>
+          </div>
+
+          <div style="margin-bottom:0.75rem;">
+            <label style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:0.35rem;">
+              Dados de Status (JSON ou Linhas CSV 'TAG;STATUS;CLIENTE;CLASSIFICACAO'):
+            </label>
+            <textarea id="textarea-import-fleet" class="search-input" rows="8" style="width:100%; border-radius:var(--radius-md); font-family:monospace; font-size:0.78rem; line-height:1.4;" placeholder='[&#10;  { "tag": "40/100/36", "status": "disponivel" },&#10;  { "tag": "40/250/32", "status": "locada", "client": "Vale S.A.", "clientTier": "AA" }&#10;]'></textarea>
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+            <button type="button" class="btn btn-sm btn-secondary" id="btn-example-fleet-json">
+              Exemplo JSON
+            </button>
+            <button type="button" class="btn btn-primary" id="btn-submit-import-fleet">
+              🔄 Aplicar Atualização à Frota
+            </button>
+          </div>
+        </div>
+
+        <!-- ABA 3: RESET / LIMPEZA COMPLETA -->
+        <div id="loader-content-reset" class="loader-tab-pane" style="display:none;">
+          <div style="background:rgba(239, 68, 68, 0.1); border:1px solid #EF4444; border-radius:var(--radius-md); padding:1rem; margin-bottom:1rem;">
+            <strong style="color:#EF4444; display:block; font-size:0.9rem; margin-bottom:0.5rem;">
+              ⚠️ Purga Total de Dados de Teste
+            </strong>
+            <p style="font-size:0.8rem; color:#FECACA; line-height:1.5; margin:0 0 0.75rem 0;">
+              Esta operação remove todos os laudos periciais de teste, solicitações do PCM fictícias, filas de contingência e usuários de homologação, deixando a base 100% pronta para a operação oficial.
+            </p>
+            <button type="button" class="btn btn-danger" id="btn-action-full-clean" style="font-size:0.8rem;">
+              🗑️ Executar Limpeza Total para Operação
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-close-modal">Fechar</button>
+      </div>
     </div>
   </div>
 

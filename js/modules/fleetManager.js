@@ -22,8 +22,19 @@ export const FleetManager = {
     const locadas = fleet.filter(e => e.status === 'locada').length;
     const taxaAprovacao = total > 0 ? Math.round(((disponiveis + locadas + reservadas) / total) * 100) : 0;
 
-    const badgeBloq = document.getElementById('badge-count-bloqueados');
-    if (badgeBloq) badgeBloq.textContent = bloqueados;
+    // Atualiza os badges de filtro estáticos da interface se existirem
+    const setElemText = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val;
+    };
+
+    setElemText('nav-count-fleet', total);
+    setElemText('badge-count-todos', total);
+    setElemText('badge-count-disponivel', disponiveis);
+    setElemText('badge-count-reservada', reservadas);
+    setElemText('badge-count-locada', locadas);
+    setElemText('badge-count-manutencao', manutencao);
+    setElemText('badge-count-bloqueados', bloqueados);
 
     // Métricas segregadas pelas 2 Divisões Oficiais de Negócio da Locar:
     // 1. Divisão PTA (Plataformas Elevatórias: Articuladas, Telescópicas, Tesouras)
@@ -43,6 +54,10 @@ export const FleetManager = {
     const guindRes = guindastesItems.filter(e => e.status === 'reservada').length;
     const guindMan = guindastesItems.filter(e => e.status === 'manutencao').length;
     const guindTaxa = guindTotal > 0 ? Math.round(((guindDisp + guindLoc + guindRes) / guindTotal) * 100) : 0;
+
+    setElemText('type-count-todos', total);
+    setElemText('type-count-pta', ptaTotal);
+    setElemText('type-count-guindastes', guindTotal);
 
     // Sub-segmentação interna da Divisão de Guindastes para auditoria e controle do PCM
     const countGuindastesPuros = guindastesItems.filter(e => e.type === 'guindaste' || e.type === 'guindauto').length;
@@ -421,6 +436,27 @@ export const FleetManager = {
                   📜
                 </button>
               </div>
+            ` : eq.status === 'manutencao' ? `
+              <div style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.3); border-radius:var(--radius-sm); padding:0.55rem; font-size:0.75rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px; flex-wrap:wrap; gap:0.25rem;">
+                  <span style="font-weight:700; color:#EF4444;">🔧 Retido no PCM / Oficina</span>
+                  <span style="font-weight:800; color:#F59E0B; background:rgba(245,158,11,0.15); padding:1px 6px; border-radius:4px; font-size:0.68rem; border:1px solid rgba(245,158,11,0.3);">
+                    ${eq.daysToRelease !== null && eq.daysToRelease !== undefined ? `${eq.daysToRelease} dias p/ liberar` : 'Prazo a definir'}
+                  </span>
+                </div>
+                <div style="font-size:0.72rem; color:var(--text-light); display:flex; flex-direction:column; gap:2px;">
+                  <div>📅 <strong>Previsão de Saída:</strong> <span style="color:#FFF; font-weight:700;">${eq.maintenanceReleaseDate || 'Não informado'}</span></div>
+                  ${eq.lastMovementDate ? `<div style="color:var(--text-muted); font-size:0.68rem;">Entrada no PCM: ${eq.lastMovementDate}</div>` : ''}
+                </div>
+              </div>
+              <div style="display:flex; gap:0.4rem; width:100%;">
+                <button type="button" class="btn btn-primary btn-start-inspection" data-id="${eq.id}" data-type="${eq.type}" style="flex:1;">
+                  📋 Reinspecionar Pós-PCM
+                </button>
+                <button type="button" class="btn btn-secondary btn-view-history" data-id="${eq.id}">
+                  📜 Histórico
+                </button>
+              </div>
             ` : `
               <div style="display:flex; gap:0.4rem; width:100%;">
                 <button type="button" class="btn btn-primary btn-start-inspection" data-id="${eq.id}" data-type="${eq.type}" style="flex:1;">
@@ -518,6 +554,9 @@ export const FleetManager = {
       'Horímetro (h)',
       'Filial / Base',
       'Status Operacional',
+      'Previsão Saída Manutenção',
+      'Dias p/ Liberar Manutenção',
+      'Data Entrada Manutenção / Mov.',
       'Classificação Cliente',
       'Rigor Técnico',
       'Cliente Contratante',
@@ -541,6 +580,9 @@ export const FleetManager = {
         eq.hourmeter || 0,
         eq.branch || 'Betim - MG',
         eq.status.toUpperCase(),
+        eq.maintenanceReleaseDate || (eq.status === 'manutencao' ? 'A definir' : 'N/A'),
+        eq.daysToRelease !== null && eq.daysToRelease !== undefined ? eq.daysToRelease : (eq.status === 'manutencao' ? 'N/A' : '0'),
+        eq.lastMovementDate || 'N/A',
         tierMeta ? tierMeta.shortLabel : 'Geral / Pátio',
         tierMeta ? tierMeta.rigorLevel : 'Padrão Locar',
         clientName,

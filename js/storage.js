@@ -8,7 +8,7 @@ import { idbStorage } from './modules/indexedDBStorage.js';
 import { CLIENT_TIERS, getClientTier } from './data/clientTiers.js';
 
 const STORAGE_KEYS = {
-  FLEET: 'locar_inspection_fleet_v2_betim',
+  FLEET: 'locar_inspection_fleet_v3_betim',
   INSPECTIONS: 'locar_inspection_history_v2_betim',
   SERVICE_REQUESTS: 'locar_pcm_service_requests_v2_betim',
   PCM_CONFIG: 'locar_pcm_config_v2'
@@ -19,6 +19,7 @@ export const Storage = {
   clearLegacyData() {
     try {
       localStorage.removeItem('locar_inspection_fleet_v1');
+      localStorage.removeItem('locar_inspection_fleet_v2_betim');
       localStorage.removeItem('locar_inspection_history_v1');
       localStorage.removeItem('locar_work_orders_v1');
       localStorage.removeItem('locar_pcm_service_requests_v1');
@@ -82,44 +83,14 @@ export const Storage = {
   enrichFleetWithClientTiers(fleet) {
     if (!Array.isArray(fleet)) return fleet;
 
-    const samplePool = [
-      { tier: 'AA', client: 'Vale S.A.', site: 'Mina Pau Branco / Brucutu' },
-      { tier: 'AA', client: 'Usiminas', site: 'Usina Intendente Câmara - Ipatinga' },
-      { tier: 'AA', client: 'Anglo American', site: 'Minas-Rio - Conceição do Mato Dentro' },
-      { tier: 'AA', client: 'ArcelorMittal', site: 'Usina Monlevade' },
-      { tier: 'AA', client: 'CSN (Companhia Siderúrgica Nacional)', site: 'Mina Casa de Pedra - Congonhas' },
-      { tier: 'AA', client: 'Gerdau', site: 'Usina Ouro Branco' },
-      { tier: 'A', client: 'Manserv Industrial (Vale)', site: 'Parada Programada Vale Vargem Grande' },
-      { tier: 'A', client: 'Andrade Gutierrez (Anglo American)', site: 'Obras de Expansão Minas-Rio' },
-      { tier: 'A', client: 'Tenenge / Engevix (Usiminas)', site: 'Montagem Industrial Alto Forno 3' },
-      { tier: 'A', client: 'Camargo Corrêa Infra (CSN)', site: 'Estruturas Metálicas CSN Mineração' },
-      { tier: 'B', client: 'Prefeitura Municipal de Betim', site: 'Obras Viárias Avenida das Américas' },
-      { tier: 'B', client: 'DER-MG (Dep. Estradas de Rodagem)', site: 'Manutenção Viária MG-050 / BR-381' },
-      { tier: 'B', client: 'Copasa - Saneamento', site: 'Estação de Tratamento Betim' },
-      { tier: 'B', client: 'DNIT (Infraestrutura de Transportes)', site: 'Passarela de Pedestres BR-381 Betim' },
-      { tier: 'C', client: 'Galpão Logístico Betim Distribuição', site: 'Condomínio Logístico Via Expressa' },
-      { tier: 'C', client: 'Construtora Residencial & Predial', site: 'Edifício Residencial Jardins Betim' },
-      { tier: 'C', client: 'Instalações Elétricas & Iluminação', site: 'Parque Industrial Betim' }
-    ];
-
-    let poolIdx = 0;
+    // Em operação real, preserva apenas classificações legítimas já associadas aos ativos
     fleet.forEach(eq => {
-      if (eq.status === 'locada' && !eq.clientTier) {
-        const item = samplePool[poolIdx % samplePool.length];
-        poolIdx++;
-        eq.clientTier = item.tier;
-        eq.client = eq.client || item.client;
-        eq.siteLocation = eq.siteLocation || item.site;
-        const tierMeta = getClientTier(item.tier);
-        eq.clientTierBadge = tierMeta?.badgeLabel || item.tier;
-        if (!eq.currentContract) {
-          eq.currentContract = `${eq.client} (Contrato Vigente)`;
-        }
-      } else if (eq.status === 'reservada') {
-        const tier = eq.reservation?.clientTier || eq.clientTier || 'AA';
-        eq.clientTier = tier;
+      const tier = eq.clientTier || eq.reservation?.clientTier;
+      if (tier) {
         const tierMeta = getClientTier(tier);
-        eq.clientTierBadge = tierMeta?.badgeLabel || tier;
+        if (tierMeta) {
+          eq.clientTierBadge = tierMeta.badgeLabel || tier;
+        }
       }
     });
 
@@ -350,65 +321,7 @@ export const Storage = {
     } catch (e) {
       console.warn('Erro ao ler solicitações de serviço:', e);
     }
-
-    // Inicializa solicitações de serviço com base nos equipamentos reais do CMMS Betim já em manutenção
-    const initialSS = [
-      {
-        id: 'SS-PCM-BETIM-2026-001',
-        equipmentId: '40/250/32',
-        equipmentTag: '40/250/32',
-        equipmentName: 'SANY SAC 2500S (GUINDASTE 250 TON)',
-        type: 'guindaste',
-        branch: '2-Betim / MG',
-        openedDate: '17/09/2026 09:30',
-        openedBy: 'Carlos Eduardo Mendes',
-        inspectorPhone: '(31) 98765-4321',
-        status: 'em_planejamento',
-        severity: 'critica',
-        pcmEmailSent: true,
-        pcmEmailDate: '17/09/2026 09:32',
-        pcmRecipient: 'pcm.betim@locar.com.br',
-        nonConformities: [
-          {
-            item: 'Chave Fim de Curso do Moitão (Anti-Two Block / A2B)',
-            norm: 'ASME B30.5 & NR-12',
-            note: 'Chave A2B com defeito intermitente de sinal no moitão principal de 250t.',
-            type: 'Segurança / LMI'
-          },
-          {
-            item: 'Padrão Visual Locar & Faixas Refletivas',
-            norm: 'Identidade Locar',
-            note: 'Faixa zebrada da patola traseira esquerda danificada durante transporte.',
-            type: 'Padrão Visual Locar'
-          }
-        ],
-        solutionNotes: 'PCM Betim: Peças requisitadas ao fornecedor SANY. Previsão de liberação no Engeman®: 06/10/2026.'
-      },
-      {
-        id: 'SS-PCM-BETIM-2026-002',
-        equipmentId: '40/100/40',
-        equipmentTag: '40/100/40',
-        equipmentName: 'GUINDASTE 100 TON (Liebherr LTM 1090)',
-        type: 'guindaste',
-        severity: 'urgente',
-        status: 'em_analise',
-        openedDate: '15/09/2026 14:10',
-        openedBy: 'Carlos Eduardo Mendes',
-        inspectorPhone: '(31) 98765-4321',
-        nonConformities: [
-          {
-            item: 'Sistema Hidráulico e Cilindros de Elevação',
-            norm: 'NR-12 Anexo XII item 3.4',
-            note: 'Vazamento constatado na conexão do cilindro primário da lança telescópica.',
-            type: 'Falha Crítica'
-          }
-        ],
-        solutionNotes: 'PCM Betim: Manutenção em andamento na oficina de Betim. Previsão de liberação no Engeman®: 16/10/2026.'
-      }
-    ];
-
-    localStorage.setItem(STORAGE_KEYS.SERVICE_REQUESTS, JSON.stringify(initialSS));
-    return initialSS;
+    return [];
   },
 
   saveServiceRequests(requests) {
@@ -482,5 +395,102 @@ export const Storage = {
       return requests[index];
     }
     return null;
+  },
+
+  /**
+   * Limpa integralmente dados de teste (inspeções, solicitações do PCM, filas e usuários)
+   * Deixando o sistema 100% preparado para entrada em operação real.
+   */
+  async clearAllTestData() {
+    try {
+      // 1. Limpa histórico de laudos e inspeções locais
+      localStorage.removeItem(STORAGE_KEYS.INSPECTIONS);
+      localStorage.setItem(STORAGE_KEYS.INSPECTIONS, JSON.stringify([]));
+
+      // 2. Limpa solicitações de serviço do PCM
+      localStorage.removeItem(STORAGE_KEYS.SERVICE_REQUESTS);
+      localStorage.setItem(STORAGE_KEYS.SERVICE_REQUESTS, JSON.stringify([]));
+
+      // 3. Limpa filas de contingência Appwrite
+      localStorage.removeItem('locar_appwrite_queue_inspections_v1');
+      localStorage.removeItem('locar_appwrite_queue_pcm_v1');
+
+      // 4. Limpa sessões ativas e auditorias de teste
+      localStorage.removeItem('locar_auth_session_v1');
+      localStorage.removeItem('locar_auth_lockout_v1');
+      localStorage.removeItem('locar_audit_log_v1');
+      localStorage.removeItem('locar_corporate_users_v1');
+
+      // 5. Limpa IndexedDB de alta capacidade
+      try {
+        await idbStorage.clearAll();
+      } catch (eIdb) {
+        console.warn('Erro ao limpar IndexedDB:', eIdb);
+      }
+
+      // 6. Limpa chaves legadas
+      this.clearLegacyData();
+
+      // 7. Limpa dados de vistorias prévias e reservas fictícias na frota
+      const fleet = this.getFleet();
+      if (Array.isArray(fleet)) {
+        fleet.forEach(eq => {
+          eq.lastInspectionDate = null;
+          eq.lastInspector = null;
+          eq.reservation = null;
+          eq.reservationData = null;
+          eq.lastCancelledReservation = null;
+        });
+        this.saveFleet(fleet);
+      }
+
+      console.log('✓ [Locar] Sistema preparado para entrada em operação: Todos os dados de teste e usuários fictícios foram limpos.');
+      return true;
+    } catch (e) {
+      console.error('Erro ao limpar dados de teste:', e);
+      return false;
+    }
+  },
+
+  /**
+   * Atualização em lote do status das frotas
+   * @param {Array<object>} updates 
+   */
+  updateFleetBatch(updates) {
+    if (!Array.isArray(updates)) return { success: false, error: 'A carga deve ser uma lista de ativos.' };
+    const fleet = this.getFleet();
+    let updatedCount = 0;
+
+    updates.forEach(up => {
+      const tagOrId = String(up.tag || up.id || up.prefixo || '').trim();
+      if (!tagOrId) return;
+      const eq = fleet.find(item => 
+        item.tag?.toLowerCase() === tagOrId.toLowerCase() || 
+        item.id?.toLowerCase() === tagOrId.toLowerCase()
+      );
+      if (eq) {
+        if (up.status) {
+          const s = String(up.status).toLowerCase().trim();
+          eq.status = s;
+          eq.statusRaw = up.statusRaw || s.toUpperCase();
+        }
+        if (up.client !== undefined) eq.client = up.client;
+        if (up.clientTier !== undefined) {
+          eq.clientTier = up.clientTier;
+          const tierMeta = getClientTier(up.clientTier);
+          eq.clientTierBadge = tierMeta?.badgeLabel || up.clientTier;
+        }
+        if (up.currentContract !== undefined) eq.currentContract = up.currentContract;
+        if (up.siteLocation !== undefined) eq.siteLocation = up.siteLocation;
+        if (up.hourmeter !== undefined) eq.hourmeter = Number(up.hourmeter) || eq.hourmeter;
+        if (up.notes !== undefined) eq.notes = up.notes;
+        if (up.branch !== undefined) eq.branch = up.branch;
+        if (up.reservation !== undefined) eq.reservation = up.reservation;
+        updatedCount++;
+      }
+    });
+
+    this.saveFleet(fleet);
+    return { success: true, updatedCount, totalFleet: fleet.length };
   }
 };
